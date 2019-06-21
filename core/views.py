@@ -1,21 +1,15 @@
 from django.http import HttpResponse
-from django.shortcuts import render
 
 import os
 import pickle
 from urllib.request import Request
 from googleapiclient.discovery import build
-from oauth2client.client import flow_from_clientsecrets
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
+from project.settings import SCOPES, CLIENT_SECRETS_LOCATION
 from .models import Email
 # Create your views here.
-
-CLIENTSECRETS_LOCATION = 'C:/Users/jagge/workspace/pms_integration_backend/credentials_template.json'
-SCOPES = [
-    'https://www.googleapis.com/auth/gmail.readonly',
-]
 
 
 def receive_emails(request):
@@ -28,7 +22,7 @@ def receive_emails(request):
     if creds and creds.expired and creds.refresh_token:
       creds.refresh(Request())
     else:
-      flow = InstalledAppFlow.from_client_secrets_file(CLIENTSECRETS_LOCATION, ' '.join(SCOPES))
+      flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS_LOCATION, ' '.join(SCOPES))
       creds = flow.run_local_server()
     # Save the credentials for the next run
     with open('token.json', 'wb') as token:
@@ -39,9 +33,9 @@ def receive_emails(request):
   response = service.users().messages().list(userId='me', labelIds=['INBOX']).execute()
   messages = response.get('messages', [])
   if not messages:
-    print("No messages found.")
+    return "No messages found."
   else:
-    print("Message snippets:")
+    return "Putting messagees into DB"
     list_of_snippets = []
     for message in messages:
       msg = service.users().messages().get(userId='me', id=message['id']).execute()

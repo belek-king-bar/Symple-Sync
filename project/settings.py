@@ -27,6 +27,11 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+CLIENT_SECRETS_LOCATION = '../credentials_template.json'
+SCOPES = [
+    'https://www.googleapis.com/auth/gmail.readonly',
+]
+
 
 # Application definition
 
