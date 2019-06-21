@@ -12,7 +12,7 @@ from google.auth.transport.requests import Request
 from .models import Email
 # Create your views here.
 
-CLIENTSECRETS_LOCATION = 'C:/Users/jagge/workspace/pms_integration/pms/credentials.json'
+CLIENTSECRETS_LOCATION = 'C:/Users/jagge/workspace/pms_integration_backend/credentials_template.json'
 SCOPES = [
     'https://www.googleapis.com/auth/gmail.readonly',
 ]
