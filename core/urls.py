@@ -4,5 +4,5 @@ from core import services
 from . import views
 
 urlpatterns = [
-    path('', views.RecieveEmailListView.as_view(), name='get_emails'),
+    path('', views.RecieveEmailListView.as_view(), name='DoGetEmails'),
 ]
