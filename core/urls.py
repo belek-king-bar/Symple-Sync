@@ -1,7 +1,8 @@
 from django.urls import path
 
+from core import services
 from . import views
 
 urlpatterns = [
-    path('', views.receive_emails, name='receive_emails'),
+    path('', views.RecieveEmailListView.as_view(), name='get_emails'),
 ]
