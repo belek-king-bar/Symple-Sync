@@ -5,6 +5,7 @@ from django.db import models
 
 class Email(models.Model):
   snippet = ArrayField(models.CharField(max_length=200))
+  userId  = models.CharField(max_length=200)
 
   def __str__(self):
     return self.snippet
