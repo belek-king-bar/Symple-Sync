@@ -11,11 +11,6 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 import os
-POSTGRES_USER = os.environ.get('POSTGRES_USER')
-POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD')
-POSTGRES_PORT = os.environ.get('POSTGRES_PORT')
-POSTGRES_HOST = os.environ.get('POSTGRES_HOST')
-POSTGRES_DB = os.environ.get('POSTGRES_DB')
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -33,12 +28,12 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 CLIENT_CONFIG = {'installed':
-  {'client_id':'CLIENT_ID',
-  'project_id':'PROJECT_ID',
+  {'client_id':os.environ.get('CLIENT_ID'),
+  'project_id':os.environ.get('PROJECT_ID'),
   'auth_uri':'https://accounts.google.com/o/oauth2/auth',
   'token_uri':'https://oauth2.googleapis.com/token',
   'auth_provider_x509_cert_url':'https://www.googleapis.com/oauth2/v1/certs',
-  'client_secret':'CLIENT_SECRET',
+  'client_secret':os.environ.get('CLIENT_SECRET'),
   'redirect_uris':[
     'urn:ietf:wg:oauth:2.0:oob","http://localhost'
     ]
