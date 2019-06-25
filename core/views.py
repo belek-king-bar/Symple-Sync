@@ -11,6 +11,7 @@ class RecieveEmailListView(APIView):
     def get(self, request):
         try:
             emails = GoogleService.receive_emails(request)
+            return Response({'message': 'OK'}, status=200)
         except NoEmailFoundError as error:
             return Response({'message': 'No email found'}, status=404)
 

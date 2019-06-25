@@ -1,2 +1,4 @@
-class NoEmailFoundError(object):
+
+
+class NoEmailFoundError(Exception):
     pass
