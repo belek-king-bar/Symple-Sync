@@ -38,19 +38,15 @@ class GoogleService:
         service = build('gmail', 'v1', credentials=creds)
 
         response = service.users().messages().list(userId='me', labelIds=['INBOX']).execute()
-        list_of_snippets = []
-        try:
-            messages = response.get('messages', [])
-            for message in messages:
-                msg = service.users().messages().get(userId='me', id=message['id']).execute()
-                snippet = msg['snippet']
-                print(type(snippet))
-                list_of_snippets.append(snippet)
-        except NoEmailFoundError:
-            print('No messages found')
+        messages = response.get('messages', [])
         if not messages:
             raise NoEmailFoundError('No messasges found')
         else:
+            list_of_snippets = []
+            for message in messages:
+                msg = service.users().messages().get(userId='me', id=message['id']).execute()
+                snippet = msg['snippet']
+                list_of_snippets.append(snippet)
             email = Email(snippet=list_of_snippets)
             email.save()
 
