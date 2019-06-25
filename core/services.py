@@ -11,11 +11,8 @@ import os
 import pickle
 
 from core.models import Email
+from core.views import NoEmailFoundError
 from project.settings import SCOPES, CLIENT_CONFIG, CLIENT_TOKEN_LOCATION
-
-
-class NoEmailFoundError(object):
-    pass
 
 
 class GoogleService:
@@ -40,7 +37,7 @@ class GoogleService:
         response = service.users().messages().list(userId='me', labelIds=['INBOX']).execute()
         messages = response.get('messages', [])
         if not messages:
-            raise NoEmailFoundError('No messasges found')
+            raise NoEmailFoundError()
         else:
             list_of_snippets = []
             for message in messages:
