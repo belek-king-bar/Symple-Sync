@@ -1,0 +1,2 @@
+class NoEmailFoundError(object):
+    pass

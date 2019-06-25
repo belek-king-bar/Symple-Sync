@@ -1,17 +1,14 @@
-from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.http import HttpResponse
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-from typing import List
 from urllib.request import Request
 
 import os
 
 import pickle
 
+from core.exceptions import NoEmailFoundError
 from core.models import Email
-from core.views import NoEmailFoundError
 from project.settings import SCOPES, CLIENT_CONFIG, CLIENT_TOKEN_LOCATION
 
 
