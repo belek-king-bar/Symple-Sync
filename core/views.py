@@ -1,15 +1,8 @@
-from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from core.exceptions import NoEmailFoundError
-from .serializers import *
-from core.services import GoogleService
 from rest_framework import generics
 from core.services import GoogleService, SlackService
-from django.http import HttpResponse
 from rest_framework.response import Response
 from core.exceptions import NoEmailFoundError
-from rest_framework import viewsets
 from .serializers import *
 
 

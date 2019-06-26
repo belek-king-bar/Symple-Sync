@@ -109,7 +109,7 @@ class SlackService:
                             data.files.create(name=message['files'][0]['name'],
                                               url_download=message['files'][0]['url_private_download'])
 
-                        elif str(tag) in message['text']:
+                        elif str(tag) in message['text'] and 'files' not in message:
                             Messages.objects.create(service=service, tag=tag, text=message['text'],
                                                     user_name=message['user'],
                                                     timestamp=message['ts'])
@@ -134,7 +134,7 @@ class SlackService:
                             data.files.create(name=message['files'][0]['name'],
                                               url_download=message['files'][0]['url_private_download'])
 
-                        elif str(tag) in message['text']:
+                        elif str(tag) in message['text'] and 'files' not in message:
                             Messages.objects.create(service=service, tag=tag, text=message['text'],
                                                     user_name=message['user'],
                                                     timestamp=message['ts'])

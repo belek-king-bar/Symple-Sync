@@ -49,6 +49,7 @@ SCOPES = [
 CLIENT_ID_SLACK = os.environ['CLIENT_ID_SLACK']
 CLIENT_SECRET_SLACK = os.environ['CLIENT_SECRET_SLACK']
 
+
 URLS = {
     'authorize': 'https://slack.com/oauth/authorize?scope=channels%3Ahistory&client_id=' + CLIENT_ID_SLACK,
     'oauth_access': 'https://slack.com/api/oauth.access',
@@ -109,11 +110,11 @@ WSGI_APPLICATION = 'project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB'),
-        'USER': os.environ.get('POSTGRES_USER'),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD'),
-        'HOST': os.environ.get('POSTGRES_HOST'),
-        'PORT': os.environ.get('POSTGRES_PORT'),
+        'NAME': 'integration__data',
+        'USER': 'postgres',
+        'PASSWORD': '7325real2342',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
