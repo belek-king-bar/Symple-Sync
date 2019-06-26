@@ -11,12 +11,15 @@ Project Management's Integration is a project that combines data from different 
 
 
 
-<h3>How to install</h3>
+<h3>How to install and run</h3>
 
 ```
 git clone https://gitlab.com/zensoft-rts/pms_integration_backend.git
 cd pms_integration_backend
 pip install -r requirements.txt
+python manage.py makemigrations
+python manage.py migrate
+python manage.py runserver
 ```
 
 
