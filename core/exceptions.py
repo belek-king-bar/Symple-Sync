@@ -1,0 +1,3 @@
+
+class NoEmailFoundError(Exception):
+    pass

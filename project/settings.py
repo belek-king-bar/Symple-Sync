@@ -20,12 +20,12 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'DJANGO_SECRET_KEY'
+SECRET_KEY = os.environ['SECRET_KEY']
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 CLIENT_CONFIG = {'installed':
   {'client_id':os.environ.get('CLIENT_ID'),
@@ -44,6 +44,17 @@ SCOPES = [
     'https://www.googleapis.com/auth/gmail.readonly',
 ]
 
+CLIENT_ID_SLACK = os.environ['CLIENT_ID_SLACK']
+CLIENT_SECRET_SLACK = os.environ['CLIENT_SECRET_SLACK']
+
+URLS = {
+    'authorize': 'https://slack.com/oauth/authorize?scope=channels%3Ahistory&client_id=' + CLIENT_ID_SLACK,
+    'oauth_access': 'https://slack.com/api/oauth.access',
+    'channels_list': 'https://slack.com/api/channels.list',
+    'groups_list': 'https://slack.com/api/groups.list',
+    'channels_history': 'https://slack.com/api/channels.history',
+    'groups_history': 'https://slack.com/api/groups.history',
+}
 
 # Application definition
 
@@ -89,18 +100,17 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'project.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB'),
-        'USER': os.environ.get('POSTGRES_USER'),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD'),
-        'HOST': os.environ.get('POSTGRES_HOST'),
-        'PORT': os.environ.get('POSTGRES_PORT'),
+        'NAME': os.environ['DATABASE_NAME'],
+        'USER': os.environ['DATABASE_USER'],
+        'PASSWORD': os.environ['DATABASE_PASSWORD'],
+        'HOST': os.environ['HOST'],
+        'PORT': os.environ['PORT'],
     }
 }
 
