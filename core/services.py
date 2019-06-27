@@ -94,11 +94,10 @@ class SlackService:
             for message in data_channels_history['messages']:
                 for tag in tags:
                     if str(tag) in message['text'] and 'files' in message:
+                        data = Message.objects.create(service=service[0], tag=tag, text=message['text'],
+                                                      user_name=message['user'],
+                                                      timestamp=message['ts'])
                         for file in message['files']:
-                            data = Message.objects.create(service=service[0], tag=tag, text=message['text'],
-                                                          user_name=message['user'],
-                                                          timestamp=file['timestamp'])
-
                             data.files.create(name=file['name'],
                                               url_download=file['url_private_download'])
 
