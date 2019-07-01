@@ -46,6 +46,18 @@ SCOPES = [
     'https://www.googleapis.com/auth/gmail.readonly',
 ]
 
+CLIENT_ID_SLACK = os.environ['CLIENT_ID_SLACK']
+CLIENT_SECRET_SLACK = os.environ['CLIENT_SECRET_SLACK']
+
+
+URLS = {
+    'authorize': 'https://slack.com/oauth/authorize?scope=channels%3Ahistory&client_id=' + CLIENT_ID_SLACK,
+    'oauth_access': 'https://slack.com/api/oauth.access',
+    'channels_list': 'https://slack.com/api/channels.list',
+    'groups_list': 'https://slack.com/api/groups.list',
+    'channels_history': 'https://slack.com/api/channels.history',
+    'groups_history': 'https://slack.com/api/groups.history',
+}
 
 # Application definition
 
@@ -98,11 +110,11 @@ WSGI_APPLICATION = 'project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB'),
-        'USER': os.environ.get('POSTGRES_USER'),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD'),
-        'HOST': os.environ.get('POSTGRES_HOST'),
-        'PORT': os.environ.get('POSTGRES_PORT'),
+        'NAME': os.environ['POSTGRES_DB'],
+        'USER': os.environ['POSTGRES_USER'],
+        'PASSWORD': os.environ['POSTGRES_PASSWORD'],
+        'HOST': os.environ['POSTGRES_HOST'],
+        'PORT': os.environ['POSTGRES_PORT'],
     }
 }
 

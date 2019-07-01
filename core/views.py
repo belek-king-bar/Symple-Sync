@@ -1,10 +1,7 @@
-from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from core.services import SlackService, GoogleService, OAuthAuthorization
+from rest_framework.response import Response
 from core.exceptions import NoEmailFoundError
-from .serializers import *
-from core.services import GoogleService
-from rest_framework import generics
 
 
 class RecieveEmailListView(APIView):
@@ -16,7 +13,28 @@ class RecieveEmailListView(APIView):
 
         return Response({'message': 'OK'}, status=200)
 
-class EmailView(generics.ListCreateAPIView):
-    queryset = Email.objects.all()
-    serializer_class = ArraSerialzier
+
+class ReceiveSlackListView(APIView):
+
+    def get(self, request):
+        try:
+            SlackService.receive_messages()
+        except NoEmailFoundError as error:
+            return Response({'message': 'No slack found'}, status=404)
+
+        return Response({'message': 'OK'}, status=200)
+
+
+class ReceiveSlackCodeOauthView(APIView):
+
+    def get(self, request):
+        try:
+            code = request.GET['code']
+            OAuthAuthorization.slack_authorization(code)
+        except NoEmailFoundError as error:
+            return Response({'message': 'No code found'}, status=404)
+
+        return Response({'message': 'OK'}, status=200)
+
+
 
