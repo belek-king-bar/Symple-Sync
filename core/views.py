@@ -46,6 +46,3 @@ class SlackMessageView(APIView):
         messages = Message.objects.filter(service=service[0])
         serializer = MessageSerializer(messages, many=True)
         return Response(serializer.data)
-
-
-

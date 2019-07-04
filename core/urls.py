@@ -7,4 +7,3 @@ urlpatterns = [
     path('doGetSlackOauthCode', views.ReceiveSlackCodeOauthView.as_view(), name='doGetSlackOauthCode'),
     path('doGetGmailMessages', views.RecieveEmailListView.as_view(), name='doGetGmailMessages'),
 ]
-
