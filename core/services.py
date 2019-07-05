@@ -30,8 +30,8 @@ class GoogleService:
         service = Service.objects.filter(name='gmail').first()
         token = Token.objects.filter(service=service)
         tags = Tag.objects.filter(service=service)
-        creds = oauth2client.client.GoogleCredentials(token[0].access_token, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET,
-                                                     token[0].refresh_token, None,
+        creds = oauth2client.client.GoogleCredentials(token.access_token, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET,
+                                                     token.refresh_token, None,
                                                       GOOGLE_AUTH_URL,GOOGLE_USER_AGENT)
         http = creds.authorize(httplib2.Http())
         creds.refresh(http)
