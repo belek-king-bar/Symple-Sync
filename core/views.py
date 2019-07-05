@@ -20,7 +20,7 @@ class SaveGmailListView(APIView):
         try:
             GoogleService.receive_emails(request)
         except NoEmailFoundError as error:
-            return Response({'message': 'No code found'}, status=404)
+            return Response({'message': 'No messages found'}, status=404)
 
         return Response({'message': 'ok'}, status=200)
 

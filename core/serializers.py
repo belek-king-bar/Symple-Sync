@@ -1,13 +1,16 @@
 from rest_framework import serializers
 
-from core.models import Message
+from core.models import Message, File
 
 
-class InlineMessageSerializer(object):
-    pass
+class InlineMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = File
+        fields = ('id', 'name', 'url_download')
 
 
 class MessageSerializer(serializers.ModelSerializer):
+    files = InlineMessageSerializer(many=True, read_only=True)
     tag_name = serializers.SerializerMethodField(read_only=True, source='tag')
     service_name = serializers.SerializerMethodField(read_only=True, source='service')
 
@@ -20,4 +23,4 @@ class MessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
         fields = ('id', 'user', 'tag', 'tag_name', 'service', 'service_name',
-                  'timestamp', 'user_name','text','created_at')
+                  'timestamp', 'user_name', 'text', 'created_at', 'files')

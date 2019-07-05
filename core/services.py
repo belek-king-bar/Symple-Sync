@@ -27,7 +27,7 @@ class GoogleService:
     @classmethod
     @transaction.atomic
     def receive_emails(cls, request):
-        service = Service.objects.filter(name='gmail')
+        service = Service.objects.filter(name='gmail').first()
         token = Token.objects.filter(service=service[0])
         tags = Tag.objects.filter(service=service[0])
         creds = oauth2client.client.GoogleCredentials(token[0].access_token, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET,

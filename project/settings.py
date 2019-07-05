@@ -35,9 +35,9 @@ CLIENT_SECRET_SLACK = os.environ['CLIENT_SECRET_SLACK']
 GOOGLE_OAUTH2_CLIENT_SECRETS_JSON = os.path.join(BASE_DIR, 'client_secrets.json')
 STORE_DIR = os.path.join(BASE_DIR, 'uploads/files/')
 
-REDIRECT_URI = 'http://localhost:8000/'
-GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/token'
-GOOGLE_USER_AGENT = 'my-user-agent/1.0'
+GOOGLE_REDIRECT_URI = os.environ.get('GOOGLE_REDIRECT_URI')
+GOOGLE_AUTH_URL = os.environ.get('GOOGLE_AUTH_URL')
+GOOGLE_USER_AGENT = os.environ.get('GOOGLE_USER_AGENT')
 
 
 SCOPES = [
