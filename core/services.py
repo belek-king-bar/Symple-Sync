@@ -51,7 +51,6 @@ class GoogleService:
 
 class SlackService:
     @classmethod
-    @transaction.atomic
     def receive_channels(cls):
         channels = []
         service = Service.objects.filter(name='slack')
@@ -78,7 +77,6 @@ class SlackService:
         return channels
 
     @classmethod
-    @transaction.atomic
     def receive_messages(cls):
         channels = SlackService.receive_channels()
         service = Service.objects.filter(name='slack')
@@ -103,10 +101,10 @@ class SlackService:
                     if str(tag) in message['text'] and 'files' in message:
                         data = Message.objects.create(service=service[0], tag=tag, text=message['text'],
                                                       user_name=message['user'],
-                                                      timestamp=message['files'][0]['timestamp'])
-
-                        data.files.create(name=message['files'][0]['name'],
-                                          url_download=message['files'][0]['url_private_download'])
+                                                      timestamp=message['ts'])
+                        for file in message['files']:
+                            data.files.create(name=file['name'],
+                                              url_download=file['url_private_download'])
 
                     elif str(tag) in message['text'] and 'files' not in message:
                         Message.objects.create(service=service[0], tag=tag, text=message['text'],
@@ -116,12 +114,10 @@ class SlackService:
 
 class OAuthAuthorization:
     @classmethod
-    @transaction.atomic
-    def slack_authorization(cls, request):
+    def slack_authorization(cls, code):
         service = Service.objects.filter(name='slack')
         token = Token.objects.filter(service=service[0])
-        if 'code' in request.GET and not token:
-            code = request.GET['code']
+        if code and not token:
 
             params_to_token = {
               'client_id': settings.CLIENT_ID_SLACK,

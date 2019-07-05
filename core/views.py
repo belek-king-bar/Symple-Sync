@@ -51,7 +51,8 @@ class ReceiveSlackCodeOauthView(APIView):
 
     def get(self, request):
         try:
-            OAuthAuthorization.slack_authorization(request)
+            code = request.GET['code']
+            OAuthAuthorization.slack_authorization(code)
         except NoEmailFoundError as error:
             return Response({'message': 'No code found'}, status=404)
 
