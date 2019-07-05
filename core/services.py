@@ -1,15 +1,17 @@
-import httplib2
-import oauth2client
 from googleapiclient.discovery import build
 from oauth2client.client import flow_from_clientsecrets
 from django.db import transaction
 from core.exceptions import NoEmailFoundError
-from core.models import Message, Tag, Token, Service
+from core.models import Message, Tag, Token, Service, User
+from core.serializers import ServiceSerializer
 from project.settings import SCOPES, GOOGLE_REDIRECT_URI, GOOGLE_OAUTH2_CLIENT_SECRETS_JSON, GMAIL_CLIENT_ID, \
     GMAIL_CLIENT_SECRET, GOOGLE_AUTH_URL, GOOGLE_USER_AGENT
 from django.conf import settings
+from datetime import datetime
 import requests
 import json
+import httplib2
+import oauth2client
 
 
 def retrieve_messages(headers):
@@ -110,6 +112,21 @@ class SlackService:
                         Message.objects.create(service=service[0], tag=tag, text=message['text'],
                                                user_name=message['user'],
                                                timestamp=message['ts'])
+        SlackService.save_last_sync(service[0])
+
+    @classmethod
+    def save_last_sync(cls, service):
+        user = User.objects.get(pk=2)
+        data = {
+            "user": [user.id],
+            "name": service.name,
+            "status": service.status,
+            "last_sync": datetime.now()
+        }
+
+        serializer = ServiceSerializer(service, data=data)
+        if serializer.is_valid():
+            serializer.save()
 
 
 class OAuthAuthorization:
