@@ -3,7 +3,6 @@ from .models import Message, File
 
 
 class InlineMessageSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = File
         fields = ('id', 'name', 'url_download')

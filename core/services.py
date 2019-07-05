@@ -1,47 +1,52 @@
-from google_auth_oauthlib.flow import InstalledAppFlow
+import httplib2
+import oauth2client
 from googleapiclient.discovery import build
-from urllib.request import Request
+from oauth2client.client import flow_from_clientsecrets
 from django.db import transaction
 from core.exceptions import NoEmailFoundError
 from core.models import Message, Tag, Token, Service
-from project.settings import SCOPES, CLIENT_CONFIG, CLIENT_TOKEN_LOCATION
+from project.settings import SCOPES, GOOGLE_REDIRECT_URI, GOOGLE_OAUTH2_CLIENT_SECRETS_JSON, GMAIL_CLIENT_ID, \
+    GMAIL_CLIENT_SECRET, GOOGLE_AUTH_URL, GOOGLE_USER_AGENT
 from django.conf import settings
 import requests
-import os
 import json
-import pickle
+
+
+def retrieve_messages(headers):
+    delivered_to = None
+    date = None
+    for i in range(len(headers)):
+        if headers[i]['name'] == 'Delivered-To':
+            delivered_to = headers[i]['value']
+        elif headers[i]['name'] == 'Date':
+            date = headers[i]['value']
+    return delivered_to, date
 
 
 class GoogleService:
     @classmethod
     @transaction.atomic
     def receive_emails(cls, request):
-        creds = None
-        if os.path.exists(CLIENT_TOKEN_LOCATION):
-            with open(CLIENT_TOKEN_LOCATION, 'rb') as token:
-                creds = pickle.load(token)
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_config(CLIENT_CONFIG, SCOPES)
-                creds = flow.run_local_server()
-            with open(CLIENT_TOKEN_LOCATION, 'wb') as token:
-                pickle.dump(creds, token)
-
-        service = build('gmail', 'v1', credentials=creds)
-
-        response = service.users().messages().list(userId='me', labelIds=['INBOX']).execute()
+        service = Service.objects.filter(name='gmail').first()
+        token = Token.objects.filter(service=service)
+        tags = Tag.objects.filter(service=service)
+        creds = oauth2client.client.GoogleCredentials(token.access_token, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET,
+                                                     token.refresh_token, None,
+                                                      GOOGLE_AUTH_URL,GOOGLE_USER_AGENT)
+        http = creds.authorize(httplib2.Http())
+        creds.refresh(http)
+        gmail_service = build('gmail', 'v1', credentials=creds)
+        response = gmail_service.users().messages().list(userId='me', labelIds=[tags.name]).execute()
         messages = response.get('messages', [])
         if not messages:
             raise NoEmailFoundError()
         else:
-            list_of_snippets = []
             for message in messages:
-                msg = service.users().messages().get(userId='me', id=message['id']).execute()
-                snippet = msg['snippet']
-                email = Message(text=snippet)
-                email.save()
+                msg = gmail_service.users().messages().get(userId='me', id=message['id']).execute()
+                headers = msg['payload']['headers']
+                delivered_to, date = retrieve_messages(headers)
+                Message.objects.create(service=service, tag=tags, text=msg['snippet'],
+                                       user_name=delivered_to, timestamp=date)
 
 
 class SlackService:
@@ -123,3 +128,18 @@ class OAuthAuthorization:
             json_response = requests.get(settings.URLS['oauth_access'], params_to_token)
             data = json.loads(json_response.text)
             Token.objects.create(service=service[0], access_token=data['access_token'])
+
+
+    @classmethod
+    def gmail_authorization(cls, code):
+        service = Service.objects.filter(name='gmail').first()
+        token = Token.objects.filter(service=service)
+        if code and not token:
+            exchange_token = code
+            flow = flow_from_clientsecrets(GOOGLE_OAUTH2_CLIENT_SECRETS_JSON, ' '.join(SCOPES))
+            flow.redirect_uri = GOOGLE_REDIRECT_URI
+            credentials = flow.step2_exchange(exchange_token)
+            Token.objects.create(service=service, access_token=credentials.access_token,
+                                 refresh_token=credentials.refresh_token)
+
+

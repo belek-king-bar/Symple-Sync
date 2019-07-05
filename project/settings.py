@@ -27,27 +27,22 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-CLIENT_TOKEN_LOCATION = os.path.join(BASE_DIR, 'token.json')
+GMAIL_CLIENT_ID = os.environ.get('GMAIL_CLIENT_ID')
+GMAIL_CLIENT_SECRET = os.environ.get('GMAIL_CLIENT_SECRET')
+CLIENT_ID_SLACK = os.environ['CLIENT_ID_SLACK']
+CLIENT_SECRET_SLACK = os.environ['CLIENT_SECRET_SLACK']
 
-CLIENT_CONFIG = {'installed':
-  {'client_id':os.environ.get('CLIENT_ID'),
-  'project_id':os.environ.get('PROJECT_ID'),
-  'auth_uri':'https://accounts.google.com/o/oauth2/auth',
-  'token_uri':'https://oauth2.googleapis.com/token',
-  'auth_provider_x509_cert_url':'https://www.googleapis.com/oauth2/v1/certs',
-  'client_secret':os.environ.get('CLIENT_SECRET'),
-  'redirect_uris':[
-    'urn:ietf:wg:oauth:2.0:oob","http://localhost'
-    ]
-  }
-}
+GOOGLE_OAUTH2_CLIENT_SECRETS_JSON = os.path.join(BASE_DIR, 'client_secrets.json')
+STORE_DIR = os.path.join(BASE_DIR, 'uploads/files/')
+
+GOOGLE_REDIRECT_URI = os.environ.get('GOOGLE_REDIRECT_URI')
+GOOGLE_AUTH_URL = os.environ.get('GOOGLE_AUTH_URL')
+GOOGLE_USER_AGENT = os.environ.get('GOOGLE_USER_AGENT')
+
 
 SCOPES = [
     'https://www.googleapis.com/auth/gmail.readonly',
 ]
-
-CLIENT_ID_SLACK = os.environ['CLIENT_ID_SLACK']
-CLIENT_SECRET_SLACK = os.environ['CLIENT_SECRET_SLACK']
 
 
 URLS = {
@@ -68,12 +63,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'core',
     'django_extensions',
     'rest_framework',
+    'storages',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -102,6 +100,8 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'project.wsgi.application'
+
+CORS_ORIGIN_ALLOW_ALL = True
 
 
 # Database
@@ -156,3 +156,4 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 
 STATIC_URL = '/static/'
+
