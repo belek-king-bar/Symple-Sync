@@ -34,7 +34,6 @@ class CreateNewServiceTest(TestCase):
         self.service = Service.objects.create(
             name='slack', status=True, frequency='every day')
         self.service.user.add(self.user.id)
-        print(self.user.id)
         self.valid_payload = {
             'user': self.user.id,
             'name': "google_drive",
