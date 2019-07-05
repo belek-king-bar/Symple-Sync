@@ -1,7 +1,4 @@
-from django.contrib.postgres.fields import ArrayField
 from django.db import models
-
-# Create your models here.
 
 
 class User(models.Model):
@@ -13,7 +10,11 @@ class User(models.Model):
 
 
 class Service(models.Model):
+    user = models.ManyToManyField(User, related_name='service', verbose_name="User")
     name = models.CharField(max_length=255, verbose_name='Service name')
+    status = models.BooleanField(default=True, verbose_name="Service status")
+    last_sync = models.DateTimeField(verbose_name="Last synchronization", null=True, blank=True)
+    frequency = models.CharField(max_length=255, verbose_name='Service frequency', null=True, blank=True)
 
     def __str__(self):
         return self.name
@@ -22,10 +23,7 @@ class Service(models.Model):
 class Tag(models.Model):
     user = models.ManyToManyField('User', related_name='tags', verbose_name='User')
     service = models.ManyToManyField(Service, related_name='tags', verbose_name='Service')
-    name = models.CharField(max_length=255, verbose_name='Tags name')
-
-    def __str__(self):
-        return self.name
+    name = models.CharField(max_length=255, verbose_name='Tag name', null=True)
 
 
 class Token(models.Model):
@@ -40,8 +38,8 @@ class Token(models.Model):
 
 
 class Message(models.Model):
-    user = models.ForeignKey(User, related_name='messages', null=True, blank=True, verbose_name='User messages',
-                             on_delete=models.CASCADE)
+    user = models.ForeignKey(User, related_name='messages', verbose_name='User messages',
+                             on_delete=models.CASCADE, null=True)
     service = models.ForeignKey(Service, related_name='messages', verbose_name='Service messages',
                                 on_delete=models.CASCADE)
     tag = models.ForeignKey(Tag, related_name='messages', verbose_name='Tag messages', on_delete=models.CASCADE)
@@ -51,7 +49,7 @@ class Message(models.Model):
     created_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.tag.name
+        return self.service.name
 
 
 class File(models.Model):
