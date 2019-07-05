@@ -1,6 +1,5 @@
 from rest_framework import serializers
-
-from core.models import Message, File
+from .models import Message, File
 
 
 class InlineMessageSerializer(serializers.ModelSerializer):
@@ -22,5 +21,5 @@ class MessageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Message
-        fields = ('id', 'user', 'tag', 'tag_name', 'service', 'service_name',
-                  'timestamp', 'user_name', 'text', 'created_at', 'files')
+        fields = ('id', 'user', 'tag', 'tag_name', 'service', 'service_name', 'timestamp', 'user_name', 'text',
+                  'created_at', 'files')
