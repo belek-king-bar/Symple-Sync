@@ -25,7 +25,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['d7112f61.ngrok.io']
+ALLOWED_HOSTS = []
 
 GMAIL_CLIENT_ID = os.environ.get('GMAIL_CLIENT_ID')
 GMAIL_CLIENT_SECRET = os.environ.get('GMAIL_CLIENT_SECRET')
