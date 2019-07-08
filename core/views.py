@@ -116,15 +116,9 @@ class TagsView(APIView):
 
     def get(self, request):
         service = request.GET['service']
-        if service and service == 'slack':
-            service_slack = Service.objects.filter(name=service)
-            tags = Tag.objects.filter(service=service_slack[0])
-            serializer = TagSerializer(tags, many=True)
-            return Response(serializer.data)
-
-        elif service and service == 'gmail':
-            service_gmail = Service.objects.filter(name=service)
-            tags = Tag.objects.filter(service=service_gmail[0])
+        if service:
+            service = Service.objects.filter(name=service)
+            tags = Tag.objects.filter(service=service[0])
             serializer = TagSerializer(tags, many=True)
             return Response(serializer.data)
 
