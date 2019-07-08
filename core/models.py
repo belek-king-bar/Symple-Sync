@@ -24,6 +24,8 @@ class Tag(models.Model):
     user = models.ManyToManyField('User', related_name='tags', verbose_name='User')
     service = models.ManyToManyField(Service, related_name='tags', verbose_name='Service')
     name = models.CharField(max_length=255, verbose_name='Tag name', null=True)
+    url = models.CharField(max_length=255, verbose_name='Tag url to confluence', null=True, blank=True,
+                           default='url')
 
 
 class Token(models.Model):

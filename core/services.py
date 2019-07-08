@@ -100,18 +100,25 @@ class SlackService:
             tags = Tag.objects.filter(service=service[0])
             for message in data_channels_history['messages']:
                 for tag in tags:
-                    if str(tag) in message['text'] and 'files' in message:
+                    if tag.name in message['text'] and 'files' in message:
+                        value_datetime = datetime.fromtimestamp(float(message['ts']))
+                        username = SlackService.receive_username(message['user'])
                         data = Message.objects.create(service=service[0], tag=tag, text=message['text'],
-                                                      user_name=message['user'],
-                                                      timestamp=message['ts'])
+                                                      user_name=username,
+                                                      timestamp=value_datetime)
                         for file in message['files']:
                             data.files.create(name=file['name'],
                                               url_download=file['url_private_download'])
 
-                    elif str(tag) in message['text'] and 'files' not in message:
+                    elif tag.name in message['text'] and 'files' not in message:
+                        value_datetime = datetime.fromtimestamp(float(message['ts']))
+                        username = SlackService.receive_username(message['user'])
                         Message.objects.create(service=service[0], tag=tag, text=message['text'],
-                                               user_name=message['user'],
-                                               timestamp=message['ts'])
+
+                                               user_name=username,
+
+                                               timestamp=value_datetime)
+
         SlackService.save_last_sync(service[0])
 
     @classmethod
@@ -127,6 +134,25 @@ class SlackService:
         serializer = ServiceSerializer(service, data=data)
         if serializer.is_valid():
             serializer.save()
+
+    @classmethod
+    def receive_username(cls, user_id):
+        service = Service.objects.filter(name='slack')
+        service = service[0]
+        token = Token.objects.filter(service=service)
+
+        if token:
+            access_token = token[0].access_token
+
+            params_to_username = {
+                'token': access_token,
+                'user': user_id
+            }
+
+            response = requests.get(settings.URLS['username'], params_to_username)
+            username = json.loads(response.text)
+            user = username['user']['real_name']
+            return user
 
 
 class OAuthAuthorization:
@@ -145,7 +171,6 @@ class OAuthAuthorization:
             json_response = requests.get(settings.URLS['oauth_access'], params_to_token)
             data = json.loads(json_response.text)
             Token.objects.create(service=service[0], access_token=data['access_token'])
-
 
     @classmethod
     def gmail_authorization(cls, code):

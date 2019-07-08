@@ -2,8 +2,8 @@ from rest_framework.views import APIView
 from core.services import SlackService, GoogleService, OAuthAuthorization
 from rest_framework.response import Response
 from core.exceptions import NoEmailFoundError
-from .serializers import MessageSerializer, ServiceSerializer
-from .models import Message, Service, User
+from .serializers import MessageSerializer, ServiceSerializer, TagSerializer
+from .models import Message, Service, User, Tag
 from rest_framework import status
 
 
@@ -110,3 +110,55 @@ class ServiceView(APIView):
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         return Response(status=status.HTTP_201_CREATED)
+
+
+class TagsView(APIView):
+
+    def get(self, request):
+        service = request.GET['service']
+        if service and service == 'slack':
+            service_slack = Service.objects.filter(name=service)
+            tags = Tag.objects.filter(service=service_slack[0])
+            serializer = TagSerializer(tags, many=True)
+            return Response(serializer.data)
+
+        elif service and service == 'gmail':
+            service_gmail = Service.objects.filter(name=service)
+            tags = Tag.objects.filter(service=service_gmail[0])
+            serializer = TagSerializer(tags, many=True)
+            return Response(serializer.data)
+
+    def post(self, request):
+        user = User.objects.get(pk=2)
+        service = Service.objects.get(name=request.data.get('service'))
+        new_tags = request.data.get('tags')
+        for new_tag in new_tags:
+            if 'id' in new_tag:
+                tag = Tag.objects.get(pk=new_tag['id'])
+                data = {
+                    'user': [user.id],
+                    'service': [service.id],
+                    'name': new_tag['name'],
+                    'url': new_tag['url']
+                }
+                serializer = TagSerializer(tag, data=data)
+                if serializer.is_valid():
+                    serializer.save()
+                else:
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            elif 'id' not in new_tag:
+                data = {
+                    'user': [user.id],
+                    'service': [service.id],
+                    'name': new_tag['name'],
+                    'url': new_tag['url']
+                }
+
+                serializer = TagSerializer(data=data)
+                if serializer.is_valid():
+                    serializer.save()
+                else:
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        service_tag = Tag.objects.filter(service=service)
+        serializer = TagSerializer(service_tag, many=True)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
