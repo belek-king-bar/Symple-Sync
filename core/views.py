@@ -76,7 +76,7 @@ class ServiceView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        user = User.objects.get(pk=2)
+        user = User.objects.first()
 
         data = {
             'user': [user.id],
@@ -93,7 +93,7 @@ class ServiceView(APIView):
 
     def put(self, request):
         services = request.data.get('services')
-        user = User.objects.get(pk=2)
+        user = User.objects.first()
         for service in services:
             service_b = Service.objects.get(pk=service['id'])
 
@@ -124,7 +124,7 @@ class TagsView(APIView):
         return Response({'message': 'No service found'}, status=404)
 
     def post(self, request):
-        user = User.objects.get(pk=2)
+        user = User.objects.first()
         service = Service.objects.get(name=request.data.get('service'))
         new_tags = request.data.get('tags')
         for new_tag in new_tags:

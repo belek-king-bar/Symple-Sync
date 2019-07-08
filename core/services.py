@@ -123,7 +123,7 @@ class SlackService:
 
     @classmethod
     def save_last_sync(cls, service):
-        user = User.objects.get(pk=2)
+        user = User.objects.first()
         data = {
             "user": [user.id],
             "name": service.name,
