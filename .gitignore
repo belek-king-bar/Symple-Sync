@@ -1,6 +1,7 @@
 *.pyc
 *__pycache__
 venv
+env_file_pm
 myvenv
 db.sqlite3
 .idea

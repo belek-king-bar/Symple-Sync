@@ -1,0 +1,31 @@
+image: docker:latest
+variables:
+  DOCKER_HOST: tcp://docker:2375/
+  DOCKER_DRIVER: overlay2
+services:
+  - docker:dind
+stages:
+  - build_push
+  - deploy
+before_script:
+  - docker info
+  - apk add --update python py-pip python-dev
+  - pip install awscli
+  - $(aws ecr get-login --no-include-email --region eu-west-1)
+docker build:
+  stage: build_push
+  script:
+  - docker build --no-cache -t "303247004675.dkr.ecr.eu-west-1.amazonaws.com/pms-integration:back" .
+  - docker push 303247004675.dkr.ecr.eu-west-1.amazonaws.com/pms-integration:back
+  only:
+  - pipeline-back
+  tags:
+  - docker
+deploying:
+  stage: deploy
+  script:
+  - aws s3 cp json_pm.zip s3://$AWS_S3_BUCKET/
+  - aws elasticbeanstalk create-application-version --application-name simplesync --version-label $CI_CONCURRENT_ID --source-bundle S3Bucket=$AWS_S3_BUCKET,S3Key='json_pm.zip' --region eu-west-1
+  - aws elasticbeanstalk update-environment --environment-name Simplesync-env --version-label $CI_CONCURRENT_ID --region eu-west-1
+  only:
+  - pipeline-back
