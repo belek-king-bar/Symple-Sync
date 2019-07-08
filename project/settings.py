@@ -52,6 +52,7 @@ URLS = {
     'groups_list': 'https://slack.com/api/groups.list',
     'channels_history': 'https://slack.com/api/channels.history',
     'groups_history': 'https://slack.com/api/groups.history',
+    'username': 'https://slack.com/api/users.info'
 }
 
 # Application definition
