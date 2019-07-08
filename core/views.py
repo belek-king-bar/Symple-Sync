@@ -10,7 +10,7 @@ from rest_framework import status
 class RecieveGmailListView(APIView):
     def get(self, request):
         service = Service.objects.filter(name='gmail')
-        messages = Message.objects.filter(service=service[0]).order_by('-created_at')
+        messages = Message.objects.filter(service=service.first()).order_by('-created_at')
         serializer = MessageSerializer(messages, many=True)
         return Response(serializer.data)
 
@@ -63,7 +63,7 @@ class SlackMessageView(APIView):
 
     def get(self, request):
         service = Service.objects.filter(name='slack')
-        messages = Message.objects.filter(service=service[0])
+        messages = Message.objects.filter(service=service.first())
         serializer = MessageSerializer(messages, many=True)
         return Response(serializer.data)
 
@@ -118,7 +118,7 @@ class TagsView(APIView):
         service = request.GET['service']
         if service:
             service = Service.objects.filter(name=service)
-            tags = Tag.objects.filter(service=service[0])
+            tags = Tag.objects.filter(service=service.first())
             serializer = TagSerializer(tags, many=True)
             return Response(serializer.data)
 

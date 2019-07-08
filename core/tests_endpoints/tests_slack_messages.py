@@ -27,7 +27,7 @@ class GetSlackMessagesTest(TestCase):
     def test_get_all_messages(self):
         response = client.get(reverse('slack_message'))
         service = Service.objects.filter(name='slack')
-        messages = Message.objects.filter(service=service[0])
+        messages = Message.objects.filter(service=service.first())
         serializer = MessageSerializer(messages, many=True)
         self.assertEqual(response.data, serializer.data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)

@@ -56,11 +56,11 @@ class SlackService:
     def receive_channels(cls):
         channels = []
         service = Service.objects.filter(name='slack')
-        service = service[0]
+        service = service.first()
         token = Token.objects.filter(service=service)
 
         if token:
-            access_token = token[0].access_token
+            access_token = token.first().access_token
 
             params_to_channel_list = {
                 'token': access_token
@@ -82,7 +82,7 @@ class SlackService:
     def receive_messages(cls):
         channels = SlackService.receive_channels()
         service = Service.objects.filter(name='slack')
-        token = Token.objects.filter(service=service[0])
+        token = Token.objects.filter(service=service.first())
         for channel in channels:
 
             if 'is_channel' in channel:
@@ -91,19 +91,19 @@ class SlackService:
                 url = settings.URLS['groups_history']
 
             params_to_channels_history = {
-                'token': token[0].access_token,
+                'token': token.first().access_token,
                 'channel': channel['id']
             }
 
             channels_history = requests.get(url, params_to_channels_history)
             data_channels_history = json.loads(channels_history.text)
-            tags = Tag.objects.filter(service=service[0])
+            tags = Tag.objects.filter(service=service.first())
             for message in data_channels_history['messages']:
                 for tag in tags:
                     if tag.name in message['text'] and 'files' in message:
                         value_datetime = datetime.fromtimestamp(float(message['ts']))
                         username = SlackService.receive_username(message['user'])
-                        data = Message.objects.create(service=service[0], tag=tag, text=message['text'],
+                        data = Message.objects.create(service=service.first(), tag=tag, text=message['text'],
                                                       user_name=username,
                                                       timestamp=value_datetime)
                         for file in message['files']:
@@ -113,13 +113,13 @@ class SlackService:
                     elif tag.name in message['text'] and 'files' not in message:
                         value_datetime = datetime.fromtimestamp(float(message['ts']))
                         username = SlackService.receive_username(message['user'])
-                        Message.objects.create(service=service[0], tag=tag, text=message['text'],
+                        Message.objects.create(service=service.first(), tag=tag, text=message['text'],
 
                                                user_name=username,
 
                                                timestamp=value_datetime)
 
-        SlackService.save_last_sync(service[0])
+        SlackService.save_last_sync(service.first())
 
     @classmethod
     def save_last_sync(cls, service):
@@ -138,11 +138,11 @@ class SlackService:
     @classmethod
     def receive_username(cls, user_id):
         service = Service.objects.filter(name='slack')
-        service = service[0]
+        service = service.first()
         token = Token.objects.filter(service=service)
 
         if token:
-            access_token = token[0].access_token
+            access_token = token.first().access_token
 
             params_to_username = {
                 'token': access_token,
@@ -159,7 +159,7 @@ class OAuthAuthorization:
     @classmethod
     def slack_authorization(cls, code):
         service = Service.objects.filter(name='slack')
-        token = Token.objects.filter(service=service[0])
+        token = Token.objects.filter(service=service.first())
         if code and not token:
 
             params_to_token = {
@@ -170,7 +170,7 @@ class OAuthAuthorization:
 
             json_response = requests.get(settings.URLS['oauth_access'], params_to_token)
             data = json.loads(json_response.text)
-            Token.objects.create(service=service[0], access_token=data['access_token'])
+            Token.objects.create(service=service.first(), access_token=data['access_token'])
 
     @classmethod
     def gmail_authorization(cls, code):
@@ -183,5 +183,3 @@ class OAuthAuthorization:
             credentials = flow.step2_exchange(exchange_token)
             Token.objects.create(service=service, access_token=credentials.access_token,
                                  refresh_token=credentials.refresh_token)
-
-
