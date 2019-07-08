@@ -2,8 +2,8 @@ from rest_framework.views import APIView
 from core.services import SlackService, GoogleService, OAuthAuthorization
 from rest_framework.response import Response
 from core.exceptions import NoEmailFoundError
-from .serializers import MessageSerializer, ServiceSerializer, TagSerializer
-from .models import Message, Service, User, Tag
+from .serializers import MessageSerializer, ServiceSerializer, TagSerializer, LogSerializer
+from .models import Message, Service, User, Tag, Log
 from rest_framework import status
 
 
@@ -157,3 +157,11 @@ class TagsView(APIView):
         service_tag = Tag.objects.filter(service=service)
         serializer = TagSerializer(service_tag, many=True)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class LogsView(APIView):
+
+    def get(self, request):
+        logs = Log.objects.all()
+        serializer = LogSerializer(logs, many=True)
+        return Response(serializer.data)

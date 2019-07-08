@@ -69,6 +69,7 @@ class Log(models.Model):
     service = models.ForeignKey(Service, related_name='logs', verbose_name='Log service', on_delete=models.CASCADE)
     user = models.ForeignKey(User, related_name='logs', verbose_name='Log user', on_delete=models.CASCADE)
     log_message = models.CharField(max_length=255, verbose_name='Message log')
+    created_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.log_message
