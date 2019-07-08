@@ -121,8 +121,7 @@ class TagsView(APIView):
             tags = Tag.objects.filter(service=service.first())
             serializer = TagSerializer(tags, many=True)
             return Response(serializer.data)
-        else:
-            return Response({'message': 'No service found'}, status=404)
+        return Response({'message': 'No service found'}, status=404)
 
     def post(self, request):
         user = User.objects.get(pk=2)
