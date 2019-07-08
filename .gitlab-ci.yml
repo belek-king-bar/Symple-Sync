@@ -18,7 +18,7 @@ docker build:
   - docker build --no-cache -t "303247004675.dkr.ecr.eu-west-1.amazonaws.com/pms-integration:back" .
   - docker push 303247004675.dkr.ecr.eu-west-1.amazonaws.com/pms-integration:back
   only:
-  - pipeline-back
+  - dev
   tags:
   - docker
 deploying:
@@ -28,4 +28,4 @@ deploying:
   - aws elasticbeanstalk create-application-version --application-name simplesync --version-label $CI_CONCURRENT_ID --source-bundle S3Bucket=$AWS_S3_BUCKET,S3Key='json_pm.zip' --region eu-west-1
   - aws elasticbeanstalk update-environment --environment-name Simplesync-env --version-label $CI_CONCURRENT_ID --region eu-west-1
   only:
-  - pipeline-back
+  - dev
