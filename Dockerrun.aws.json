@@ -2,7 +2,7 @@
 	"AWSEBDockerrunVersion": 2,
 	"containerDefinitions": [
 	  {
-	    "name": "nstageback",
+	    "name": "simpleback",
 	    "image": "303247004675.dkr.ecr.eu-west-1.amazonaws.com/pms-integration:back",
 	    "essential": true,
 	    "memory": 733,
@@ -13,11 +13,11 @@
 	      }
 	    ],
 	    "links": [
-	    	"nstagefront"
+	    	"simplefront"
 	    ]
 	  },
 	  {
-	  	"name": "nstagefront",
+	  	"name": "simplefront",
 	  	"image": "303247004675.dkr.ecr.eu-west-1.amazonaws.com/pms-integration:front",
 	  	"memory": 500,
 	  	"portMappings": [
