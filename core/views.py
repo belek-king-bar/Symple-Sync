@@ -18,7 +18,7 @@ class RecieveGmailListView(APIView):
 class SaveGmailListView(APIView):
     def get(self, request):
         try:
-            GoogleService.receive_emails(request)
+            GoogleService.save_emails_to_db(request)
         except NoEmailFoundError as error:
             return Response({'message': 'No messages found'}, status=404)
 
