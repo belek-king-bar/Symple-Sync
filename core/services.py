@@ -66,7 +66,7 @@ class GoogleService:
     def save_emails_to_db(cls, request):
         service = Service.objects.filter(name='gmail').first()
         token = Token.objects.filter(service=service).first()
-        tags = Tag.objects.all().filter(service=service)
+        tags = Tag.objects.filter(service=service)
         creds = oauth2client.client.GoogleCredentials(token.access_token, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET,
                                                      token.refresh_token, None,
                                                       GOOGLE_AUTH_URL,GOOGLE_USER_AGENT)
