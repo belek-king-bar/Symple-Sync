@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Message, File, Service, Tag
+from .models import Message, File, Service, Tag, Log
 
 
 class InlineMessageSerializer(serializers.ModelSerializer):
@@ -37,3 +37,14 @@ class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
         fields = ('id', 'user', 'service', 'name', 'url')
+
+
+class LogSerializer(serializers.ModelSerializer):
+    service_name = serializers.SerializerMethodField(read_only=True, source='service')
+
+    def get_service_name(self, message):
+        return message.service.name
+
+    class Meta:
+        model = Log
+        fields = ('id', 'service', 'service_name', 'user', 'log_message', 'created_at')
