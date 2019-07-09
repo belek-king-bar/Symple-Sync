@@ -1,11 +1,13 @@
+import base64
 from googleapiclient.discovery import build
 from oauth2client.client import flow_from_clientsecrets
 from django.db import transaction
 from core.exceptions import NoEmailFoundError
 from core.models import Message, Tag, Token, Service, User, Log
 from core.serializers import ServiceSerializer
+from core.utils import store_to_s3
 from project.settings import SCOPES, GOOGLE_REDIRECT_URI, GOOGLE_OAUTH2_CLIENT_SECRETS_JSON, GMAIL_CLIENT_ID, \
-    GMAIL_CLIENT_SECRET, GOOGLE_AUTH_URL, GOOGLE_USER_AGENT
+    GMAIL_CLIENT_SECRET, GOOGLE_AUTH_URL, GOOGLE_USER_AGENT, STORE_DIR
 from django.conf import settings
 from datetime import datetime
 import requests
@@ -14,41 +16,82 @@ import httplib2
 import oauth2client
 
 
-def retrieve_messages(headers):
-    delivered_to = None
-    date = None
-    for i in range(len(headers)):
-        if headers[i]['name'] == 'Delivered-To':
-            delivered_to = headers[i]['value']
-        elif headers[i]['name'] == 'Date':
-            date = headers[i]['value']
-    return delivered_to, date
-
-
 class GoogleService:
     @classmethod
+    def retrieve_messages(cls, headers):
+        delivered_to = None
+        date = None
+        for i in range(len(headers)):
+            if headers[i]['name'] == 'Delivered-To':
+                delivered_to = headers[i]['value']
+            elif headers[i]['name'] == 'Date':
+                date = headers[i]['value']
+        return delivered_to, date
+
+    @classmethod
+    def retrieve_files(cls, msg, gmail_service, message):
+        url = None
+        file_name = None
+        if 'parts' in msg['payload']:
+            for part in msg['payload']['parts']:
+                if part['filename']:
+                    file_name = part['filename']
+                    if 'data' in part['body']:
+                        data = part['body']['data']
+                    else:
+                        att_id = part['body']['attachmentId']
+                        att = gmail_service.users().messages().attachments().get(userId='me', messageId=message['id'],
+                                                                                 id=att_id).execute()
+                        data = att['data']
+                    file_data = base64.urlsafe_b64decode(data.encode('UTF-8'))
+                    path = STORE_DIR + file_name
+                    f = open(path, 'wb')
+                    f.write(file_data)
+                    f.close()
+                    url = store_to_s3(path, file_name)
+        return url, file_name
+
+    @classmethod
+    def retrieve_label_id(cls, gmail_service, tag):
+        response = gmail_service.users().labels().list(userId='me').execute()
+        labels = response['labels']
+        label_id = None
+        for label in labels:
+            if label['name'] == tag.name:
+                label_id = label['id']
+        return label_id
+
+    @classmethod
     @transaction.atomic
-    def receive_emails(cls, request):
+    def save_emails_to_db(cls, request):
         service = Service.objects.filter(name='gmail').first()
-        token = Token.objects.filter(service=service)
-        tags = Tag.objects.filter(service=service)
+        token = Token.objects.filter(service=service).first()
+        tags = Tag.objects.all().filter(service=service)
         creds = oauth2client.client.GoogleCredentials(token.access_token, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET,
                                                      token.refresh_token, None,
                                                       GOOGLE_AUTH_URL,GOOGLE_USER_AGENT)
         http = creds.authorize(httplib2.Http())
         creds.refresh(http)
         gmail_service = build('gmail', 'v1', credentials=creds)
-        response = gmail_service.users().messages().list(userId='me', labelIds=[tags.name]).execute()
-        messages = response.get('messages', [])
-        if not messages:
-            raise NoEmailFoundError()
-        else:
-            for message in messages:
-                msg = gmail_service.users().messages().get(userId='me', id=message['id']).execute()
-                headers = msg['payload']['headers']
-                delivered_to, date = retrieve_messages(headers)
-                Message.objects.create(service=service, tag=tags, text=msg['snippet'],
-                                       user_name=delivered_to, timestamp=date)
+        for tag in tags:
+            label_id = GoogleService.retrieve_label_id(gmail_service, tag)
+            response = gmail_service.users().messages().list(userId='me', labelIds=[label_id]).execute()
+            messages = response.get('messages', [])
+            if not messages:
+                raise NoEmailFoundError()
+            else:
+                for message in messages:
+                    msg = gmail_service.users().messages().get(userId='me', id=message['id']).execute()
+                    headers = msg['payload']['headers']
+                    delivered_to, date = GoogleService.retrieve_messages(headers)
+                    url, file_name = GoogleService.retrieve_files(msg, gmail_service, message)
+                    if file_name is None and url is None:
+                        Message.objects.create(service=service, tag=tag, text=msg['snippet'],
+                                               user_name=delivered_to, timestamp=date)
+                    elif file_name is not None and url is not None:
+                        message = Message.objects.create(service=service, tag=tag, text=msg['snippet'],
+                                               user_name=delivered_to, timestamp=date)
+                        message.files.create(name=file_name, url_download=url)
 
 
 class SlackService:
