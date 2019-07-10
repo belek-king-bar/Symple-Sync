@@ -29,7 +29,7 @@ class ServiceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Service
-        fields = ('id', 'user', 'name', 'status', 'last_sync', 'frequency')
+        fields = ('id', 'user', 'name', 'status', 'last_sync', 'frequency', 'connected')
 
 
 class TagSerializer(serializers.ModelSerializer):

@@ -9,7 +9,7 @@ from core.utils import store_to_s3
 from project.settings import SCOPES, GOOGLE_REDIRECT_URI, GOOGLE_OAUTH2_CLIENT_SECRETS_JSON, GMAIL_CLIENT_ID, \
     GMAIL_CLIENT_SECRET, GOOGLE_AUTH_URL, GOOGLE_USER_AGENT, STORE_DIR
 from django.conf import settings
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 import json
 import httplib2
@@ -117,12 +117,14 @@ class SlackService:
 
     @classmethod
     def receive_messages(cls):
-        service = Service.objects.filter(name='slack')
-        token = Token.objects.filter(service=service.first())
-        if token and service.first().status:
+        service = Service.objects.filter(name='slack').first()
+        token = Token.objects.filter(service=service)
+        user = User.objects.first()
+        if token and service.status:
+            Log.objects.create(user=user, service=service,
+                               log_message='Synchronization successfully started')
             token = token.first().access_token
             channels = SlackService.receive_channels(token)
-            user = User.objects.first()
             count_message = 0
             for channel in channels:
 
@@ -138,37 +140,53 @@ class SlackService:
 
                 channels_history = requests.get(url, params_to_channels_history)
                 data_channels_history = json.loads(channels_history.text)
-                count = SlackService.save_messages_to_base(data=data_channels_history, service=service.first())
-                count_message += count
+                if service.frequency == 'everyday':
+                    yesterday = datetime.now() - timedelta(days=1)
+                elif service.frequency == 'everymonth':
+                    yesterday = datetime.now() - timedelta(days=30)
+                elif service.frequency == 'everyweek':
+                    yesterday = datetime.now() - timedelta(days=7)
+                yesterday_ts = datetime.timestamp(yesterday)
+                for message in data_channels_history['messages']:
+                    if float(message['ts']) > yesterday_ts:
+                        count = SlackService.save_messages_to_base(message_in=message, service=service)
+                        count_message += count
 
-            Log.objects.create(user=user, service=service.first(),
+            Log.objects.create(user=user, service=service,
                                log_message='Successfully added %s messages' % count_message)
+        else:
+            Log.objects.create(user=user, service=service, log_message='Synchronization error')
 
     @classmethod
-    def save_messages_to_base(cls, data, service):
+    def save_messages_to_base(cls, message_in, service):
         count = 0
+        client_msg_id = []
         tags = Tag.objects.filter(service=service)
-        for message in data['messages']:
-            for tag in tags:
-                if tag.name in message['text'] and 'files' in message:
-                    value_datetime = datetime.fromtimestamp(float(message['ts']))
-                    username = SlackService.receive_username(message['user'])
-                    data = Message.objects.create(service=service, tag=tag, text=message['text'],
-                                                  user_name=username,
-                                                  timestamp=value_datetime)
-                    for file in message['files']:
-                        data.files.create(name=file['name'],
-                                          url_download=file['url_private_download'])
+        messages = Message.objects.filter(service=service)
+        for message in messages:
+            client_msg_id.append(message.message_id)
+        for tag in tags:
+            if tag.name in message_in['text'] and 'files' in message_in and message_in['client_msg_id']\
+                    not in client_msg_id:
+                value_datetime = datetime.fromtimestamp(float(message_in['ts']))
+                username = SlackService.receive_username(message_in['user'])
+                data = Message.objects.create(service=service, tag=tag, text=message_in['text'],
+                                              user_name=username, timestamp=value_datetime,
+                                              message_id=message_in['client_msg_id'])
+                for file in message_in['files']:
+                    data.files.create(name=file['name'],
+                                      url_download=file['url_private_download'])
 
-                    count += 1
+                count += 1
 
-                elif tag.name in message['text'] and 'files' not in message:
-                    value_datetime = datetime.fromtimestamp(float(message['ts']))
-                    username = SlackService.receive_username(message['user'])
-                    Message.objects.create(service=service, tag=tag, text=message['text'],
-                                           user_name=username,
-                                           timestamp=value_datetime)
-                    count += 1
+            elif tag.name in message_in['text'] and 'files' not in message_in and message_in['client_msg_id']\
+                    not in client_msg_id:
+                value_datetime = datetime.fromtimestamp(float(message_in['ts']))
+                username = SlackService.receive_username(message_in['user'])
+                Message.objects.create(service=service, tag=tag, text=message_in['text'],
+                                       user_name=username,
+                                       timestamp=value_datetime, message_id=message_in['client_msg_id'])
+                count += 1
         SlackService.save_last_sync(service)
         return count
 
@@ -210,11 +228,10 @@ class OAuthAuthorization:
     @classmethod
     def slack_authorization(cls, code):
         service = Service.objects.filter(name='slack')
-        token = Token.objects.filter(service=service.first())
+        service = service.first()
+        token = Token.objects.filter(service=service)
         user = User.objects.first()
         if code and not token:
-            Log.objects.create(user=user, service=service,
-                               log_message='Authorization code successfully received')
             params_to_token = {
               'client_id': settings.CLIENT_ID_SLACK,
               'client_secret': settings.CLIENT_SECRET_SLACK,
@@ -223,8 +240,20 @@ class OAuthAuthorization:
 
             json_response = requests.get(settings.URLS['oauth_access'], params_to_token)
             data = json.loads(json_response.text)
-            Token.objects.create(service=service.first(), access_token=data['access_token'])
-            Log.objects.create(user=user, service=service, log_message='Token successfully received')
+            Token.objects.create(service=service, access_token=data['access_token'])
+            Log.objects.create(user=user, service=service, log_message='Authorized successfully')
+            data = {
+                'user': [user.id],
+                'name': service.name,
+                'status': service.status,
+                'frequency': service.frequency,
+                'connected': True
+            }
+            serializer = ServiceSerializer(service, data=data)
+            if serializer.is_valid():
+                serializer.save()
+        else:
+            Log.objects.create(user=user, service=service, log_message='Authorization error')
 
     @classmethod
     def gmail_authorization(cls, code):

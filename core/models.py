@@ -15,6 +15,7 @@ class Service(models.Model):
     status = models.BooleanField(default=True, verbose_name="Service status")
     last_sync = models.DateTimeField(verbose_name="Last synchronization", null=True, blank=True)
     frequency = models.CharField(max_length=255, verbose_name='Service frequency', null=True, blank=True)
+    connected = models.BooleanField(default=False, verbose_name='Service connected')
 
     def __str__(self):
         return self.name
@@ -44,6 +45,7 @@ class Message(models.Model):
                              on_delete=models.CASCADE, null=True)
     service = models.ForeignKey(Service, related_name='messages', verbose_name='Service messages',
                                 on_delete=models.CASCADE)
+    message_id = models.CharField(max_length=255, verbose_name='Message Id', null=True, blank=True)
     tag = models.ForeignKey(Tag, related_name='messages', verbose_name='Tag messages', on_delete=models.CASCADE)
     timestamp = models.CharField(max_length=255, null=True, blank=True, verbose_name='Timestamp')
     user_name = models.CharField(max_length=255, null=True, blank=True, verbose_name='Sender message user')
