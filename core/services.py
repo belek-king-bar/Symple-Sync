@@ -1,11 +1,13 @@
+import base64
 from googleapiclient.discovery import build
 from oauth2client.client import flow_from_clientsecrets
 from django.db import transaction
 from core.exceptions import NoEmailFoundError
-from core.models import Message, Tag, Token, Service, User
+from core.models import Message, Tag, Token, Service, User, Log
 from core.serializers import ServiceSerializer
+from core.utils import store_to_s3
 from project.settings import SCOPES, GOOGLE_REDIRECT_URI, GOOGLE_OAUTH2_CLIENT_SECRETS_JSON, GMAIL_CLIENT_ID, \
-    GMAIL_CLIENT_SECRET, GOOGLE_AUTH_URL, GOOGLE_USER_AGENT
+    GMAIL_CLIENT_SECRET, GOOGLE_AUTH_URL, GOOGLE_USER_AGENT, STORE_DIR
 from django.conf import settings
 from datetime import datetime
 import requests
@@ -14,23 +16,56 @@ import httplib2
 import oauth2client
 
 
-def retrieve_messages(headers):
-    delivered_to = None
-    date = None
-    for i in range(len(headers)):
-        if headers[i]['name'] == 'Delivered-To':
-            delivered_to = headers[i]['value']
-        elif headers[i]['name'] == 'Date':
-            date = headers[i]['value']
-    return delivered_to, date
-
-
 class GoogleService:
     @classmethod
+    def retrieve_messages(cls, headers):
+        delivered_to = None
+        date = None
+        for i in range(len(headers)):
+            if headers[i]['name'] == 'Delivered-To':
+                delivered_to = headers[i]['value']
+            elif headers[i]['name'] == 'Date':
+                date = headers[i]['value']
+        return delivered_to, date
+
+    @classmethod
+    def retrieve_files(cls, msg, gmail_service, message):
+        url = None
+        file_name = None
+        if 'parts' in msg['payload']:
+            for part in msg['payload']['parts']:
+                if part['filename']:
+                    file_name = part['filename']
+                    if 'data' in part['body']:
+                        data = part['body']['data']
+                    else:
+                        att_id = part['body']['attachmentId']
+                        att = gmail_service.users().messages().attachments().get(userId='me', messageId=message['id'],
+                                                                                 id=att_id).execute()
+                        data = att['data']
+                    file_data = base64.urlsafe_b64decode(data.encode('UTF-8'))
+                    path = STORE_DIR + file_name
+                    f = open(path, 'wb')
+                    f.write(file_data)
+                    f.close()
+                    url = store_to_s3(path, file_name)
+        return url, file_name
+
+    @classmethod
+    def retrieve_label_id(cls, gmail_service, tag):
+        response = gmail_service.users().labels().list(userId='me').execute()
+        labels = response['labels']
+        label_id = None
+        for label in labels:
+            if label['name'] == tag.name:
+                label_id = label['id']
+        return label_id
+
+    @classmethod
     @transaction.atomic
-    def receive_emails(cls, request):
+    def save_emails_to_db(cls, request):
         service = Service.objects.filter(name='gmail').first()
-        token = Token.objects.filter(service=service)
+        token = Token.objects.filter(service=service).first()
         tags = Tag.objects.filter(service=service)
         creds = oauth2client.client.GoogleCredentials(token.access_token, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET,
                                                      token.refresh_token, None,
@@ -38,88 +73,104 @@ class GoogleService:
         http = creds.authorize(httplib2.Http())
         creds.refresh(http)
         gmail_service = build('gmail', 'v1', credentials=creds)
-        response = gmail_service.users().messages().list(userId='me', labelIds=[tags.name]).execute()
-        messages = response.get('messages', [])
-        if not messages:
-            raise NoEmailFoundError()
-        else:
-            for message in messages:
-                msg = gmail_service.users().messages().get(userId='me', id=message['id']).execute()
-                headers = msg['payload']['headers']
-                delivered_to, date = retrieve_messages(headers)
-                Message.objects.create(service=service, tag=tags, text=msg['snippet'],
-                                       user_name=delivered_to, timestamp=date)
+        for tag in tags:
+            label_id = GoogleService.retrieve_label_id(gmail_service, tag)
+            response = gmail_service.users().messages().list(userId='me', labelIds=[label_id]).execute()
+            messages = response.get('messages', [])
+            if not messages:
+                raise NoEmailFoundError()
+            else:
+                for message in messages:
+                    msg = gmail_service.users().messages().get(userId='me', id=message['id']).execute()
+                    headers = msg['payload']['headers']
+                    delivered_to, date = GoogleService.retrieve_messages(headers)
+                    url, file_name = GoogleService.retrieve_files(msg, gmail_service, message)
+                    if file_name is None and url is None:
+                        Message.objects.create(service=service, tag=tag, text=msg['snippet'],
+                                               user_name=delivered_to, timestamp=date)
+                    elif file_name is not None and url is not None:
+                        message = Message.objects.create(service=service, tag=tag, text=msg['snippet'],
+                                               user_name=delivered_to, timestamp=date)
+                        message.files.create(name=file_name, url_download=url)
 
 
 class SlackService:
     @classmethod
-    def receive_channels(cls):
+    def receive_channels(cls, token):
         channels = []
-        service = Service.objects.filter(name='slack')
-        service = service.first()
-        token = Token.objects.filter(service=service)
 
-        if token:
-            access_token = token.first().access_token
+        params_to_channel_list = {
+            'token': token
+        }
 
-            params_to_channel_list = {
-                'token': access_token
-            }
+        response_channels = requests.get(settings.URLS['channels_list'], params_to_channel_list)
+        data_channel = json.loads(response_channels.text)
+        for channel in data_channel['channels']:
+            channels.append(channel)
 
-            response_channels = requests.get(settings.URLS['channels_list'], params_to_channel_list)
-            data_channel = json.loads(response_channels.text)
-            for channel in data_channel['channels']:
-                channels.append(channel)
-
-            response_groups = requests.get(settings.URLS['groups_list'], params_to_channel_list)
-            data_groups = json.loads(response_groups.text)
-            for group in data_groups['groups']:
-                channels.append(group)
+        response_groups = requests.get(settings.URLS['groups_list'], params_to_channel_list)
+        data_groups = json.loads(response_groups.text)
+        for group in data_groups['groups']:
+            channels.append(group)
 
         return channels
 
     @classmethod
     def receive_messages(cls):
-        channels = SlackService.receive_channels()
         service = Service.objects.filter(name='slack')
         token = Token.objects.filter(service=service.first())
-        for channel in channels:
+        if token and service.first().status:
+            token = token.first().access_token
+            channels = SlackService.receive_channels(token)
+            user = User.objects.first()
+            count_message = 0
+            for channel in channels:
 
-            if 'is_channel' in channel:
-                url = settings.URLS['channels_history']
-            else:
-                url = settings.URLS['groups_history']
+                if 'is_channel' in channel:
+                    url = settings.URLS['channels_history']
+                else:
+                    url = settings.URLS['groups_history']
 
-            params_to_channels_history = {
-                'token': token.first().access_token,
-                'channel': channel['id']
-            }
+                params_to_channels_history = {
+                    'token': token,
+                    'channel': channel['id']
+                }
 
-            channels_history = requests.get(url, params_to_channels_history)
-            data_channels_history = json.loads(channels_history.text)
-            tags = Tag.objects.filter(service=service.first())
-            for message in data_channels_history['messages']:
-                for tag in tags:
-                    if tag.name in message['text'] and 'files' in message:
-                        value_datetime = datetime.fromtimestamp(float(message['ts']))
-                        username = SlackService.receive_username(message['user'])
-                        data = Message.objects.create(service=service.first(), tag=tag, text=message['text'],
-                                                      user_name=username,
-                                                      timestamp=value_datetime)
-                        for file in message['files']:
-                            data.files.create(name=file['name'],
-                                              url_download=file['url_private_download'])
+                channels_history = requests.get(url, params_to_channels_history)
+                data_channels_history = json.loads(channels_history.text)
+                count = SlackService.save_messages_to_base(data=data_channels_history, service=service.first())
+                count_message += count
 
-                    elif tag.name in message['text'] and 'files' not in message:
-                        value_datetime = datetime.fromtimestamp(float(message['ts']))
-                        username = SlackService.receive_username(message['user'])
-                        Message.objects.create(service=service.first(), tag=tag, text=message['text'],
+            Log.objects.create(user=user, service=service.first(),
+                               log_message='Successfully added %s messages' % count_message)
 
-                                               user_name=username,
+    @classmethod
+    def save_messages_to_base(cls, data, service):
+        count = 0
+        tags = Tag.objects.filter(service=service)
+        for message in data['messages']:
+            for tag in tags:
+                if tag.name in message['text'] and 'files' in message:
+                    value_datetime = datetime.fromtimestamp(float(message['ts']))
+                    username = SlackService.receive_username(message['user'])
+                    data = Message.objects.create(service=service, tag=tag, text=message['text'],
+                                                  user_name=username,
+                                                  timestamp=value_datetime)
+                    for file in message['files']:
+                        data.files.create(name=file['name'],
+                                          url_download=file['url_private_download'])
 
-                                               timestamp=value_datetime)
+                    count += 1
 
-        SlackService.save_last_sync(service.first())
+                elif tag.name in message['text'] and 'files' not in message:
+                    value_datetime = datetime.fromtimestamp(float(message['ts']))
+                    username = SlackService.receive_username(message['user'])
+                    Message.objects.create(service=service, tag=tag, text=message['text'],
+                                           user_name=username,
+                                           timestamp=value_datetime)
+                    count += 1
+        SlackService.save_last_sync(service)
+        return count
 
     @classmethod
     def save_last_sync(cls, service):
@@ -160,8 +211,10 @@ class OAuthAuthorization:
     def slack_authorization(cls, code):
         service = Service.objects.filter(name='slack')
         token = Token.objects.filter(service=service.first())
+        user = User.objects.first()
         if code and not token:
-
+            Log.objects.create(user=user, service=service,
+                               log_message='Authorization code successfully received')
             params_to_token = {
               'client_id': settings.CLIENT_ID_SLACK,
               'client_secret': settings.CLIENT_SECRET_SLACK,
@@ -171,6 +224,7 @@ class OAuthAuthorization:
             json_response = requests.get(settings.URLS['oauth_access'], params_to_token)
             data = json.loads(json_response.text)
             Token.objects.create(service=service.first(), access_token=data['access_token'])
+            Log.objects.create(user=user, service=service, log_message='Token successfully received')
 
     @classmethod
     def gmail_authorization(cls, code):

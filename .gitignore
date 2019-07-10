@@ -6,3 +6,4 @@ myvenv
 db.sqlite3
 .idea
 client_secrets.json
+files/
