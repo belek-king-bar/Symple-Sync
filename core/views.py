@@ -80,8 +80,6 @@ class ServiceView(APIView):
         user = User.objects.first()
         for service in services:
             service_b = Service.objects.get(pk=service['id'])
-            print(service_b)
-            print(service['connected'])
             if service['connected'] is False:
                 token = Token.objects.filter(service=service_b).first()
                 if token:
