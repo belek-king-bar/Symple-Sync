@@ -29,8 +29,7 @@ class UpdateServiceTest(TestCase):
     """ Test module for inserting a new puppy """
 
     def setUp(self):
-        self.user = User.objects.create(id=2,
-                                        username='belek', token='1234')
+        self.user = User.objects.create(username='belek', token='1234')
         self.service = Service.objects.create(
             name='slack', status=True, frequency='every day', connected=True)
         self.service.user.add(self.user.id)

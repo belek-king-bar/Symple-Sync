@@ -2,6 +2,7 @@ import base64
 from googleapiclient.discovery import build
 from oauth2client.client import flow_from_clientsecrets
 from django.db import transaction
+from core.constants import EVERYDAY, EVERY_MONTH, DAY, MONTH, EVERY_WEEK, WEEK
 from core.exceptions import NoEmailFoundError
 from core.models import Message, Tag, Token, Service, User, Log
 from core.serializers import ServiceSerializer
@@ -188,12 +189,12 @@ class SlackService:
     @classmethod
     def get_date(cls, frequency):
         date = datetime.now()
-        if frequency == 'everyday':
-            date -= timedelta(days=1)
-        elif frequency == 'everymonth':
-            date -= timedelta(days=30)
-        elif frequency == 'everyweek':
-            date -= timedelta(days=7)
+        if frequency == EVERYDAY:
+            date -= timedelta(days=DAY)
+        elif frequency == EVERY_MONTH:
+            date -= timedelta(days=MONTH)
+        elif frequency == EVERY_WEEK:
+            date -= timedelta(days=WEEK)
         return date
 
     @classmethod
