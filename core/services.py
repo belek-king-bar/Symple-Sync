@@ -141,14 +141,14 @@ class SlackService:
                 channels_history = requests.get(url, params_to_channels_history)
                 data_channels_history = json.loads(channels_history.text)
                 if service.frequency == 'everyday':
-                    yesterday = datetime.now() - timedelta(days=1)
+                    date = datetime.now() - timedelta(days=1)
                 elif service.frequency == 'everymonth':
-                    yesterday = datetime.now() - timedelta(days=30)
+                    date = datetime.now() - timedelta(days=30)
                 elif service.frequency == 'everyweek':
-                    yesterday = datetime.now() - timedelta(days=7)
-                yesterday_ts = datetime.timestamp(yesterday)
+                    date = datetime.now() - timedelta(days=7)
+                date_ts = datetime.timestamp(date)
                 for message in data_channels_history['messages']:
-                    if float(message['ts']) > yesterday_ts:
+                    if float(message['ts']) > date_ts:
                         count = SlackService.save_messages_to_base(message_in=message, service=service)
                         count_message += count
 

@@ -57,12 +57,10 @@ class CreateNewTagTest(TestCase):
                 'user': self.user.id,
                 'service': self.service.id,
                 'name': "/ Tag1",
-                'url': "url"
             }, {
                 'user': self.user.id,
                 'service': self.service.id,
-                'name': "/ Tag2",
-                'url': 'url'
+                'name': "/ Tag2"
             }
             ]
         }
@@ -73,12 +71,10 @@ class CreateNewTagTest(TestCase):
                 'user': self.user.id,
                 'service': self.service.id,
                 'name': "",
-                'url': 'url'
             }, {
                 'user': self.user.id,
                 'service': self.service.id,
-                'name': "",
-                'url': ''
+                'name': ""
             }
             ]
         }
@@ -119,8 +115,7 @@ class UpdateTagsTest(TestCase):
                 'id': 1,
                 'user': self.user.id,
                 'service': self.service.id,
-                'name': "/ Tag1",
-                'url': 'url'
+                'name': "/ Tag1"
             }]
         }
 
@@ -130,8 +125,7 @@ class UpdateTagsTest(TestCase):
                 'id': 1,
                 'user': self.user.id,
                 'service': self.service.id,
-                'name': "",
-                'url': 'url'
+                'name': ""
             }]
         }
 

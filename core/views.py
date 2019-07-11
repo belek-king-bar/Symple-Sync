@@ -75,30 +75,17 @@ class ServiceView(APIView):
         serializer = ServiceSerializer(services, many=True)
         return Response(serializer.data)
 
-    def post(self, request):
-        user = User.objects.first()
-
-        data = {
-            'user': [user.id],
-            'name': request.data.get('name'),
-            'status': request.data.get('status'),
-            'frequency': request.data.get('frequency')
-        }
-
-        serializer = ServiceSerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
     def put(self, request):
         services = request.data.get('services')
         user = User.objects.first()
         for service in services:
             service_b = Service.objects.get(pk=service['id'])
+            print(service_b)
+            print(service['connected'])
             if service['connected'] is False:
                 token = Token.objects.filter(service=service_b).first()
-                token.delete()
+                if token:
+                    token.delete()
             data = {
                 'user': [user.id],
                 'name': service_b.name,
@@ -143,7 +130,6 @@ class TagsView(APIView):
                     'user': [user.id],
                     'service': [service.id],
                     'name': new_tag['name'],
-                    'url': new_tag['url']
                 }
                 serializer = TagSerializer(tag, data=data)
                 if serializer.is_valid():
@@ -160,7 +146,6 @@ class TagsView(APIView):
                         'user': [user.id],
                         'service': [service.id],
                         'name': new_tag['name'],
-                        'url': new_tag['url']
                     }
 
                     serializer = TagSerializer(data=data)
@@ -176,6 +161,6 @@ class TagsView(APIView):
 class LogsView(APIView):
 
     def get(self, request):
-        logs = Log.objects.all()
+        logs = Log.objects.all().order_by('-created_at')
         serializer = LogSerializer(logs, many=True)
         return Response(serializer.data)
