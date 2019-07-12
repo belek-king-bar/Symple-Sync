@@ -45,8 +45,7 @@ class CreateNewTagTest(TestCase):
     """ Test module for inserting a new puppy """
 
     def setUp(self):
-        self.user = User.objects.create(id=2,
-                                        username='belek', token='1234')
+        self.user = User.objects.create(username='belek', token='1234')
         self.service = Service.objects.create(
             name='slack', status=True, frequency='every day')
         self.service.user.add(self.user.id)
@@ -57,12 +56,10 @@ class CreateNewTagTest(TestCase):
                 'user': self.user.id,
                 'service': self.service.id,
                 'name': "/ Tag1",
-                'url': "url"
             }, {
                 'user': self.user.id,
                 'service': self.service.id,
-                'name': "/ Tag2",
-                'url': 'url'
+                'name': "/ Tag2"
             }
             ]
         }
@@ -73,12 +70,10 @@ class CreateNewTagTest(TestCase):
                 'user': self.user.id,
                 'service': self.service.id,
                 'name': "",
-                'url': 'url'
             }, {
                 'user': self.user.id,
                 'service': self.service.id,
-                'name': "",
-                'url': ''
+                'name': ""
             }
             ]
         }
@@ -104,34 +99,31 @@ class UpdateTagsTest(TestCase):
     """ Test module for inserting a new puppy """
 
     def setUp(self):
-        self.user = User.objects.create(id=2,
-                                        username='belek', token='1234')
+        self.user = User.objects.create(username='belek', token='1234')
         self.service = Service.objects.create(
             name='slack', status=True, frequency='every day')
         self.service.user.add(self.user.id)
-        self.tag = Tag.objects.create(id=1, name='/ Tag')
+        self.tag = Tag.objects.create(name='/ Tag')
         self.tag.user.add(self.user.id)
         self.tag.service.add(self.service.id)
 
         self.valid_payload = {
             "service": 'slack',
             "tags": [{
-                'id': 1,
+                'id': self.tag.id,
                 'user': self.user.id,
                 'service': self.service.id,
-                'name': "/ Tag1",
-                'url': 'url'
+                'name': "/ Tag1"
             }]
         }
 
         self.invalid_payload = {
             "service": 'slack',
             "tags": [{
-                'id': 1,
+                'id': self.tag.id,
                 'user': self.user.id,
                 'service': self.service.id,
-                'name': "",
-                'url': 'url'
+                'name': ""
             }]
         }
 

@@ -12,7 +12,7 @@ class GetSlackMessagesTest(TestCase):
         self.user = User.objects.create(
             username='belek', token='1234')
         self.service = Service.objects.create(
-            name='slack', status=True, frequency='every day')
+            name='slack', status=True, frequency='every day', connected=True)
         self.service.user.add(self.user.id)
 
         self.tag = Tag.objects.create(

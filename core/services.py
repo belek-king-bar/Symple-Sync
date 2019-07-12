@@ -1,8 +1,9 @@
-import base64
-import pytz
 from googleapiclient.discovery import build
 from oauth2client.client import flow_from_clientsecrets, FlowExchangeError
 from core.exceptions import NoEmailFoundError, CodeExchangeException, NoDirFoundError
+from oauth2client.client import flow_from_clientsecrets
+from core.constants import EVERYDAY, EVERY_MONTH, DAY, MONTH, EVERY_WEEK, WEEK, LOCAL, TIMESTAMP_WITHOUT_UTC, \
+    TIMESTAMP_WITH_UTC
 from core.models import Message, Tag, Token, Service, User, Log
 from core.serializers import ServiceSerializer
 from core.utils import store_to_s3
@@ -14,6 +15,7 @@ import requests
 import json
 import httplib2
 import oauth2client
+import base64
 
 
 class GoogleService:
@@ -68,24 +70,22 @@ class GoogleService:
     def save_emails_to_db(cls, service, gmail_service, tag, email_messages, user):
         count = 0
         messages = Message.objects.filter(service=service)
-        date_frequency = datetime.now(pytz.utc) - timedelta(days=30)
         client_email_message_id = []
         for message in messages:
             client_email_message_id.append(message.message_id)
-        if service.frequency == 'everyday':
-            date_frequency = datetime.now(pytz.utc) - timedelta(days=1)
-        elif service.frequency == 'everymonth':
-            date_frequency = datetime.now(pytz.utc) - timedelta(days=30)
-        elif service.frequency == 'everyweek':
-            date_frequency = datetime.now(pytz.utc) - timedelta(days=7)
+        date_frequency = SlackService.get_date(service.frequency)
+        local_date_frequency = LOCAL.localize(date_frequency, is_dst=None)
         for email_message in email_messages:
             if email_message['id'] not in client_email_message_id:
                 msg = gmail_service.users().messages().get(userId='me', id=email_message['id']).execute()
                 headers = msg['payload']['headers']
                 delivered_to, timestamp = GoogleService.retrieve_username_and_date(headers)
-                date = datetime.strptime(timestamp, "%a, %d %b %Y %H:%M:%S %z")
+                if len(timestamp) < TIMESTAMP_WITHOUT_UTC:
+                    date = datetime.strptime(timestamp, "%a, %d %b %Y %H:%M:%S %z")
+                elif len(timestamp) > TIMESTAMP_WITH_UTC:
+                    date = datetime.strptime(timestamp, "%a, %d %b %Y %H:%M:%S %z (%Z)")
                 url, file_name = GoogleService.retrieve_files(msg, gmail_service, email_message)
-                if date > date_frequency:
+                if date > local_date_frequency:
                     if file_name is None and url is None:
                         Message.objects.create(service=service, tag=tag, text=msg['snippet'],
                                                user_name=delivered_to, timestamp=timestamp,
@@ -98,7 +98,7 @@ class GoogleService:
                         message.files.create(name=file_name, url_download=url)
                         count += 1
                 SlackService.save_last_sync(service)
-            return count
+        return count
 
     @classmethod
     def receive_email_messages(cls):
@@ -174,16 +174,11 @@ class SlackService:
 
                 channels_history = requests.get(url, params_to_channels_history)
                 data_channels_history = json.loads(channels_history.text)
-                if service.frequency == 'everyday':
-                    yesterday = datetime.now() - timedelta(days=1)
-                elif service.frequency == 'everymonth':
-                    yesterday = datetime.now() - timedelta(days=30)
-                elif service.frequency == 'everyweek':
-                    yesterday = datetime.now() - timedelta(days=7)
-                yesterday_ts = datetime.timestamp(yesterday)
+                date = SlackService.get_date(service.frequency)
+                date_ts = datetime.timestamp(date)
                 for message in data_channels_history['messages']:
-                    if float(message['ts']) > yesterday_ts:
-                        count = SlackService.save_messages_to_base(message_in=message, service=service)
+                    if float(message['ts']) > date_ts:
+                        count = SlackService.save_messages_to_base(message_in=message, service=service, user=user)
                         count_message += count
 
             Log.objects.create(user=user, service=service,
@@ -192,7 +187,7 @@ class SlackService:
             Log.objects.create(user=user, service=service, log_message='Synchronization error')
 
     @classmethod
-    def save_messages_to_base(cls, message_in, service):
+    def save_messages_to_base(cls, message_in, service, user):
         count = 0
         client_msg_id = []
         tags = Tag.objects.filter(service=service)
@@ -204,7 +199,7 @@ class SlackService:
                     not in client_msg_id:
                 value_datetime = datetime.fromtimestamp(float(message_in['ts']))
                 username = SlackService.receive_username(message_in['user'])
-                data = Message.objects.create(service=service, tag=tag, text=message_in['text'],
+                data = Message.objects.create(user=user, service=service, tag=tag, text=message_in['text'],
                                               user_name=username, timestamp=value_datetime,
                                               message_id=message_in['client_msg_id'])
                 for file in message_in['files']:
@@ -217,12 +212,23 @@ class SlackService:
                     not in client_msg_id:
                 value_datetime = datetime.fromtimestamp(float(message_in['ts']))
                 username = SlackService.receive_username(message_in['user'])
-                Message.objects.create(service=service, tag=tag, text=message_in['text'],
+                Message.objects.create(user=user, service=service, tag=tag, text=message_in['text'],
                                        user_name=username,
                                        timestamp=value_datetime, message_id=message_in['client_msg_id'])
                 count += 1
         SlackService.save_last_sync(service)
         return count
+
+    @classmethod
+    def get_date(cls, frequency):
+        date = datetime.now()
+        if frequency == EVERYDAY:
+            date -= timedelta(days=DAY)
+        elif frequency == EVERY_MONTH:
+            date -= timedelta(days=MONTH)
+        elif frequency == EVERY_WEEK:
+            date -= timedelta(days=WEEK)
+        return date
 
     @classmethod
     def save_last_sync(cls, service):

@@ -36,7 +36,7 @@ class TagSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tag
-        fields = ('id', 'user', 'service', 'name', 'url')
+        fields = ('id', 'user', 'service', 'name')
 
 
 class LogSerializer(serializers.ModelSerializer):

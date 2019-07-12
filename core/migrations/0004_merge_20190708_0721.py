@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', 'create_user'),
+        ('core', 'create_user_and_services'),
         ('core', '0003_auto_20190708_0407'),
     ]
 
