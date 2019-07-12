@@ -29,14 +29,14 @@ class ServiceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Service
-        fields = ('id', 'user', 'name', 'status', 'last_sync', 'frequency')
+        fields = ('id', 'user', 'name', 'status', 'last_sync', 'frequency', 'connected')
 
 
 class TagSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tag
-        fields = ('id', 'user', 'service', 'name', 'url')
+        fields = ('id', 'user', 'service', 'name')
 
 
 class LogSerializer(serializers.ModelSerializer):
