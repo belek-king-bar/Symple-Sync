@@ -11,12 +11,12 @@ client = Client()
 class GetAllServicesTest(TestCase):
 
     def test_get_all_services(self):
-        self.user = User.objects.create(
+        user = User.objects.create(
             username='belek', token='1234')
-        self.service = Service.objects.create(
-            name='slack', status=True, frequency='every day', connected=True)
-        self.service.user.add(self.user.id)
-        # get API response
+        service = Service.objects.create(
+            name='slack_test', status=True, frequency='every day', connected=True)
+        service.user.add(user.id)
+
         response = client.get(reverse('get_put_services'))
         services = Service.objects.all()
         serializer = ServiceSerializer(services, many=True)
@@ -30,41 +30,42 @@ class UpdateServiceTest(TestCase):
     def setUp(self):
         self.user = User.objects.create(username='belek', token='1234')
         self.service = Service.objects.create(
-            name='slack', status=True, frequency='every day', connected=True)
+            name='slack_test', status=True, frequency='every day', connected=True)
         self.service.user.add(self.user.id)
 
-        self.valid_payload = {
+    def test_update_valid_service(self):
+
+        valid_payload = {
             'services': [{
                 "id": self.service.id,
-                "name": "slack",
+                "name": "slack_test",
                 "status": True,
                 "frequency": "every month",
                 'connected': True
             }]
         }
 
-        self.invalid_payload = {
-            'services': [{
-                "id": self.service.id,
-                "name": "slack",
-                "status": '',
-                "frequency": "every month",
-                'connected': True
-            }]
-        }
-
-    def test_update_valid_service(self):
         response = client.put(
             reverse('get_put_services'),
-            data=json.dumps(self.valid_payload),
+            data=json.dumps(valid_payload),
             content_type='application/json'
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     def test_update_invalid_service(self):
+
+        invalid_payload = {
+            'services': [{
+                "id": self.service.id,
+                "name": "slack_test",
+                "status": '',
+                "frequency": "every month",
+                'connected': True
+            }]
+        }
         response = client.put(
             reverse('get_put_services'),
-            data=json.dumps(self.invalid_payload),
+            data=json.dumps(invalid_payload),
             content_type='application/json'
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
