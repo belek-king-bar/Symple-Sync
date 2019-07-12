@@ -8,7 +8,8 @@ client = Client()
 
 
 class GetAllLogsTest(TestCase):
-    def setUp(self):
+
+    def test_get_all_logs(self):
         self.user = User.objects.create(
             username='belek', token='1234')
         self.service = Service.objects.create(
@@ -16,8 +17,6 @@ class GetAllLogsTest(TestCase):
         self.service.user.add(self.user.id)
         self.log = Log.objects.create(
             user=self.user, service=self.service, log_message='Token successfully received')
-
-    def test_get_all_logs(self):
         response = client.get(reverse('get_logs'))
         logs = Log.objects.all()
         serializer = LogSerializer(logs, many=True)

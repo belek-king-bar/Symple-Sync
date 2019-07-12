@@ -1,4 +1,3 @@
-import base64
 from googleapiclient.discovery import build
 from oauth2client.client import flow_from_clientsecrets
 from django.db import transaction
@@ -15,6 +14,7 @@ import requests
 import json
 import httplib2
 import oauth2client
+import base64
 
 
 class GoogleService:

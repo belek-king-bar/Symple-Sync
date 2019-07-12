@@ -8,7 +8,8 @@ client = Client()
 
 
 class GetSlackMessagesTest(TestCase):
-    def setUp(self):
+
+    def test_get_all_messages(self):
         self.user = User.objects.create(
             username='belek', token='1234')
         self.service = Service.objects.create(
@@ -23,8 +24,6 @@ class GetSlackMessagesTest(TestCase):
         self.message = Message.objects.create(
             user=self.user, service=self.service, tag=self.tag, text='/ Tag test'
         )
-
-    def test_get_all_messages(self):
         response = client.get(reverse('slack_message'))
         service = Service.objects.filter(name='slack')
         messages = Message.objects.filter(service=service.first())
