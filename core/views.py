@@ -95,7 +95,6 @@ class ServiceView(APIView):
                 for tag in tags:
                     tag.delete()
             elif not service['connected'] and service_b.name == 'slack':
-                requests.get('https://slack.com/api/auth.revoke?token=%s' %token.access_token)
                 if token:
                     token.delete()
                 tags = Tag.objects.filter(service=service_b)
