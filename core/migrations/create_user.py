@@ -1,4 +1,5 @@
-from django.db import migrations
+
+from django.db import migrations, models
 
 
 def create_user(apps, schema_editor):
@@ -8,7 +9,7 @@ def create_user(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0007_remove_tag_url'),
+        ('core', '0001_initial'),
     ]
 
     operations = [
