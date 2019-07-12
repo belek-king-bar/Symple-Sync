@@ -145,7 +145,7 @@ class SlackService:
                 date_ts = datetime.timestamp(date)
                 for message in data_channels_history['messages']:
                     if float(message['ts']) > date_ts:
-                        count = SlackService.save_messages_to_base(message_in=message, service=service)
+                        count = SlackService.save_messages_to_base(message_in=message, service=service, user=user)
                         count_message += count
 
             Log.objects.create(user=user, service=service,
@@ -154,7 +154,7 @@ class SlackService:
             Log.objects.create(user=user, service=service, log_message='Synchronization error')
 
     @classmethod
-    def save_messages_to_base(cls, message_in, service):
+    def save_messages_to_base(cls, message_in, service, user):
         count = 0
         client_msg_id = []
         tags = Tag.objects.filter(service=service)
@@ -166,7 +166,7 @@ class SlackService:
                     not in client_msg_id:
                 value_datetime = datetime.fromtimestamp(float(message_in['ts']))
                 username = SlackService.receive_username(message_in['user'])
-                data = Message.objects.create(service=service, tag=tag, text=message_in['text'],
+                data = Message.objects.create(user=user, service=service, tag=tag, text=message_in['text'],
                                               user_name=username, timestamp=value_datetime,
                                               message_id=message_in['client_msg_id'])
                 for file in message_in['files']:
@@ -179,7 +179,7 @@ class SlackService:
                     not in client_msg_id:
                 value_datetime = datetime.fromtimestamp(float(message_in['ts']))
                 username = SlackService.receive_username(message_in['user'])
-                Message.objects.create(service=service, tag=tag, text=message_in['text'],
+                Message.objects.create(user=user, service=service, tag=tag, text=message_in['text'],
                                        user_name=username,
                                        timestamp=value_datetime, message_id=message_in['client_msg_id'])
                 count += 1
