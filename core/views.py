@@ -1,7 +1,9 @@
+import requests
+from oauth2client.client import FlowExchangeError
 from rest_framework.views import APIView
 from core.services import SlackService, GoogleService, OAuthAuthorization
 from rest_framework.response import Response
-from core.exceptions import NoEmailFoundError
+from core.exceptions import NoEmailFoundError, CodeExchangeException, NoDirFoundError
 from .serializers import MessageSerializer, ServiceSerializer, TagSerializer, LogSerializer
 from .models import Message, Service, User, Tag, Log, Token
 from rest_framework import status
@@ -18,11 +20,13 @@ class RecieveGmailListView(APIView):
 class SaveGmailListView(APIView):
     def get(self, request):
         try:
-            GoogleService.save_emails_to_db(request)
-        except NoEmailFoundError as error:
+            GoogleService.receive_email_messages()
+        except NoEmailFoundError:
             return Response({'message': 'No messages found'}, status=404)
+        except NoDirFoundError:
+            return Response({'message': "This directory doesn't exist"})
 
-        return Response({'message': 'ok'}, status=200)
+        return Response({'message': 'OK'}, status=200)
 
 
 class ReceiveGmailCodeOauthView(APIView):
@@ -30,8 +34,10 @@ class ReceiveGmailCodeOauthView(APIView):
     def post(self, request):
         try:
             OAuthAuthorization.gmail_authorization(code=request.data['code'])
-        except NoEmailFoundError as error:
-            return Response({'message': 'No code found'}, status=404)
+        except CodeExchangeException:
+            return Response({'message': 'No code found'}, status=401)
+        except FlowExchangeError:
+            return  Response({'message': 'Invalid auth code'}, status=402 )
 
         return Response({'message': 'OK'}, status=200)
 
@@ -80,10 +86,20 @@ class ServiceView(APIView):
         user = User.objects.first()
         for service in services:
             service_b = Service.objects.get(pk=service['id'])
-            if not service['connected']:
-                token = Token.objects.filter(service=service_b).first()
+            token = Token.objects.filter(service=service_b).first()
+            if not service['connected'] and service_b.name=='gmail':
+                requests.get('https://accounts.google.com/o/oauth2/revoke?token=%s' %token.access_token)
                 if token:
                     token.delete()
+                tags = Tag.objects.filter(service=service_b)
+                for tag in tags:
+                    tag.delete()
+            elif not service['connected'] and service_b.name == 'slack':
+                if token:
+                    token.delete()
+                tags = Tag.objects.filter(service=service_b)
+                for tag in tags:
+                    tag.delete()
             data = {
                 'user': [user.id],
                 'name': service_b.name,

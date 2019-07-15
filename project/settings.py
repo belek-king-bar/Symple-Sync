@@ -27,17 +27,16 @@ DEBUG = True
 
 ALLOWED_HOSTS = os.environ['ALLOWED_HOSTS']
 
-GMAIL_CLIENT_ID = os.environ.get('GMAIL_CLIENT_ID')
-GMAIL_CLIENT_SECRET = os.environ.get('GMAIL_CLIENT_SECRET')
+CLIENT_ID_GMAIL = os.environ['CLIENT_ID_GMAIL']
+CLIENT_SECRET_GMAIL = os.environ['CLIENT_SECRET_GMAIL']
 CLIENT_ID_SLACK = os.environ['CLIENT_ID_SLACK']
 CLIENT_SECRET_SLACK = os.environ['CLIENT_SECRET_SLACK']
 
 GOOGLE_OAUTH2_CLIENT_SECRETS_JSON = os.path.join(BASE_DIR, 'client_secrets.json')
 STORE_DIR = os.path.join(BASE_DIR, 'uploads/files/')
 
-GOOGLE_REDIRECT_URI = os.environ.get('GOOGLE_REDIRECT_URI')
-GOOGLE_AUTH_URL = os.environ.get('GOOGLE_AUTH_URL')
-GOOGLE_USER_AGENT = os.environ.get('GOOGLE_USER_AGENT')
+GOOGLE_REDIRECT_URI = os.environ['GOOGLE_REDIRECT_URI']
+USER_AGENT = os.environ['USER_AGENT']
 
 AWS_ACCESS_KEY_ID = os.environ['AWS_ACCESS_KEY_ID']
 AWS_SECRET_ACCESS_KEY = os.environ['AWS_SECRET_ACCESS_KEY']
@@ -51,6 +50,8 @@ DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 SCOPES = [
     'https://www.googleapis.com/auth/gmail.readonly',
 ]
+
+GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/token'
 
 
 URLS = {

@@ -1,13 +1,14 @@
 from googleapiclient.discovery import build
+from oauth2client.client import flow_from_clientsecrets, FlowExchangeError
+from core.exceptions import NoEmailFoundError, CodeExchangeException, NoDirFoundError
 from oauth2client.client import flow_from_clientsecrets
-from django.db import transaction
-from core.constants import EVERYDAY, EVERY_MONTH, DAY, MONTH, EVERY_WEEK, WEEK
-from core.exceptions import NoEmailFoundError
+from core.constants import EVERYDAY, EVERY_MONTH, DAY, MONTH, EVERY_WEEK, WEEK, LOCAL, TIMESTAMP_WITHOUT_UTC, \
+    TIMESTAMP_WITH_UTC
 from core.models import Message, Tag, Token, Service, User, Log
 from core.serializers import ServiceSerializer
 from core.utils import store_to_s3
-from project.settings import SCOPES, GOOGLE_REDIRECT_URI, GOOGLE_OAUTH2_CLIENT_SECRETS_JSON, GMAIL_CLIENT_ID, \
-    GMAIL_CLIENT_SECRET, GOOGLE_AUTH_URL, GOOGLE_USER_AGENT, STORE_DIR
+from project.settings import SCOPES, GOOGLE_REDIRECT_URI, GOOGLE_OAUTH2_CLIENT_SECRETS_JSON, CLIENT_ID_GMAIL, \
+    CLIENT_SECRET_GMAIL, GOOGLE_AUTH_URL, USER_AGENT, STORE_DIR
 from django.conf import settings
 from datetime import datetime, timedelta
 import requests
@@ -19,18 +20,18 @@ import base64
 
 class GoogleService:
     @classmethod
-    def retrieve_messages(cls, headers):
+    def retrieve_username_and_date(cls, headers):
         delivered_to = None
-        date = None
-        for i in range(len(headers)):
-            if headers[i]['name'] == 'Delivered-To':
-                delivered_to = headers[i]['value']
-            elif headers[i]['name'] == 'Date':
-                date = headers[i]['value']
-        return delivered_to, date
+        timestamp = None
+        for header in headers:
+            if header['name'] == 'Delivered-To':
+                delivered_to = header['value']
+            elif header['name'] == 'Date':
+                timestamp = header['value']
+        return delivered_to, timestamp
 
     @classmethod
-    def retrieve_files(cls, msg, gmail_service, message):
+    def retrieve_files(cls, msg, gmail_service, email_message):
         url = None
         file_name = None
         if 'parts' in msg['payload']:
@@ -41,15 +42,18 @@ class GoogleService:
                         data = part['body']['data']
                     else:
                         att_id = part['body']['attachmentId']
-                        att = gmail_service.users().messages().attachments().get(userId='me', messageId=message['id'],
+                        att = gmail_service.users().messages().attachments().get(userId='me', messageId=email_message['id'],
                                                                                  id=att_id).execute()
                         data = att['data']
                     file_data = base64.urlsafe_b64decode(data.encode('UTF-8'))
                     path = STORE_DIR + file_name
-                    f = open(path, 'wb')
-                    f.write(file_data)
-                    f.close()
-                    url = store_to_s3(path, file_name)
+                    if path:
+                        f = open(path, 'wb')
+                        f.write(file_data)
+                        f.close()
+                        url = store_to_s3(path, file_name)
+                    else:
+                        raise NoDirFoundError
         return url, file_name
 
     @classmethod
@@ -63,36 +67,65 @@ class GoogleService:
         return label_id
 
     @classmethod
-    @transaction.atomic
-    def save_emails_to_db(cls, request):
+    def save_emails_to_db(cls, service, gmail_service, tag, email_messages, user):
+        count = 0
+        messages = Message.objects.filter(service=service)
+        client_email_message_id = []
+        for message in messages:
+            client_email_message_id.append(message.message_id)
+        date_frequency = SlackService.get_date(service.frequency)
+        local_date_frequency = LOCAL.localize(date_frequency, is_dst=None)
+        for email_message in email_messages:
+            if email_message['id'] not in client_email_message_id:
+                msg = gmail_service.users().messages().get(userId='me', id=email_message['id']).execute()
+                headers = msg['payload']['headers']
+                delivered_to, timestamp = GoogleService.retrieve_username_and_date(headers)
+                if len(timestamp) < TIMESTAMP_WITHOUT_UTC:
+                    date = datetime.strptime(timestamp, "%a, %d %b %Y %H:%M:%S %z")
+                elif len(timestamp) > TIMESTAMP_WITH_UTC:
+                    date = datetime.strptime(timestamp, "%a, %d %b %Y %H:%M:%S %z (%Z)")
+                url, file_name = GoogleService.retrieve_files(msg, gmail_service, email_message)
+                if date > local_date_frequency:
+                    if file_name is None and url is None:
+                        Message.objects.create(service=service, tag=tag, text=msg['snippet'],
+                                               user_name=delivered_to, timestamp=timestamp,
+                                               message_id=email_message['id'], user=user)
+                        count += 1
+                    elif file_name is not None and url is not None:
+                        message = Message.objects.create(service=service, tag=tag, text=msg['snippet'],
+                                                         user_name=delivered_to, timestamp=date,
+                                                         message_id=email_message['id'], user=user)
+                        message.files.create(name=file_name, url_download=url)
+                        count += 1
+                SlackService.save_last_sync(service)
+        return count
+
+    @classmethod
+    def receive_email_messages(cls):
+        count_message = 0
+        user = User.objects.first()
         service = Service.objects.filter(name='gmail').first()
         token = Token.objects.filter(service=service).first()
         tags = Tag.objects.filter(service=service)
-        creds = oauth2client.client.GoogleCredentials(token.access_token, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET,
-                                                     token.refresh_token, None,
-                                                      GOOGLE_AUTH_URL,GOOGLE_USER_AGENT)
+        creds = oauth2client.client.GoogleCredentials(token.access_token, CLIENT_ID_GMAIL, CLIENT_SECRET_GMAIL,
+                                                      token.refresh_token, None,
+                                                      GOOGLE_AUTH_URL, USER_AGENT)
         http = creds.authorize(httplib2.Http())
         creds.refresh(http)
         gmail_service = build('gmail', 'v1', credentials=creds)
         for tag in tags:
             label_id = GoogleService.retrieve_label_id(gmail_service, tag)
             response = gmail_service.users().messages().list(userId='me', labelIds=[label_id]).execute()
-            messages = response.get('messages', [])
-            if not messages:
+            email_messages = response.get('messages', [])
+            if not email_messages:
+                Log.objects.create(user=user, service=service, log_message='Synchronization error')
                 raise NoEmailFoundError()
             else:
-                for message in messages:
-                    msg = gmail_service.users().messages().get(userId='me', id=message['id']).execute()
-                    headers = msg['payload']['headers']
-                    delivered_to, date = GoogleService.retrieve_messages(headers)
-                    url, file_name = GoogleService.retrieve_files(msg, gmail_service, message)
-                    if file_name is None and url is None:
-                        Message.objects.create(service=service, tag=tag, text=msg['snippet'],
-                                               user_name=delivered_to, timestamp=date)
-                    elif file_name is not None and url is not None:
-                        message = Message.objects.create(service=service, tag=tag, text=msg['snippet'],
-                                               user_name=delivered_to, timestamp=date)
-                        message.files.create(name=file_name, url_download=url)
+                count = GoogleService.save_emails_to_db(service, gmail_service, tag, email_messages, user)
+                count_message += count
+                Log.objects.create(user=user, service=service,
+                               log_message='Successfully added %s messages' % count_message)
+
 
 
 class SlackService:
@@ -266,10 +299,27 @@ class OAuthAuthorization:
     def gmail_authorization(cls, code):
         service = Service.objects.filter(name='gmail').first()
         token = Token.objects.filter(service=service)
+        user = User.objects.first()
         if code and not token:
-            exchange_token = code
             flow = flow_from_clientsecrets(GOOGLE_OAUTH2_CLIENT_SECRETS_JSON, ' '.join(SCOPES))
             flow.redirect_uri = GOOGLE_REDIRECT_URI
-            credentials = flow.step2_exchange(exchange_token)
-            Token.objects.create(service=service, access_token=credentials.access_token,
-                                 refresh_token=credentials.refresh_token)
+            try:
+                credentials = flow.step2_exchange(code)
+                Token.objects.create(service=service, access_token=credentials.access_token,
+                                     refresh_token=credentials.refresh_token)
+                Log.objects.create(user=user, service=service, log_message='Authorized successfully')
+                data = {
+                    'user': [user.id],
+                    'name': service.name,
+                    'status': service.status,
+                    'frequency': service.frequency,
+                    'connected': True
+                }
+                serializer = ServiceSerializer(service, data=data)
+                if serializer.is_valid():
+                    serializer.save()
+            except:
+                Log.objects.create(user=user, service=service, log_message='Authorization error')
+                raise FlowExchangeError()
+        else:
+            raise CodeExchangeException()

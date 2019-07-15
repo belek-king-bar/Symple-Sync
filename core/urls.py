@@ -8,7 +8,7 @@ urlpatterns = [
     path('tags', views.TagsView.as_view(), name='get_post_tags'),
     path('logs', views.LogsView.as_view(), name='get_logs'),
     path('doGetSlackMessages', views.ReceiveSlackListView.as_view(), name='doGetSlackMessages'),
+    path('doGetGmailMessages', views.SaveGmailListView.as_view(), name='doGetGmailMessages'),
     path('doGetSlackOauthCode', views.ReceiveSlackCodeOauthView.as_view(), name='doGetSlackOauthCode'),
     path('doGetGmailOauthCode', views.ReceiveGmailCodeOauthView.as_view(), name='doGetGmailOauthCode'),
-    path('doSaveGmailMessages', views.SaveGmailListView.as_view(), name='doSaveGmailMessages'),
 ]
