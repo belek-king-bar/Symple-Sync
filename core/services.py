@@ -2,11 +2,11 @@ from googleapiclient.discovery import build
 from oauth2client.client import flow_from_clientsecrets, FlowExchangeError
 from core.exceptions import NoEmailFoundError, CodeExchangeException, NoDirFoundError
 from oauth2client.client import flow_from_clientsecrets
-from core.constants import EVERYDAY, EVERY_MONTH, DAY, MONTH, EVERY_WEEK, WEEK, LOCAL, TIMESTAMP_WITHOUT_UTC, \
-    TIMESTAMP_WITH_UTC
 from core.models import Message, Tag, Token, Service, User, Log
 from core.serializers import ServiceSerializer
 from core.utils import store_to_s3
+from core.constants import TIMESTAMP_WITH_UTC, EVERY_MONTH, EVERY_WEEK, EVERYDAY, LOCAL, TIMESTAMP_WITHOUT_UTC, DAY, \
+    MONTH, WEEK
 from project.settings import SCOPES, GOOGLE_REDIRECT_URI, GOOGLE_OAUTH2_CLIENT_SECRETS_JSON, CLIENT_ID_GMAIL, \
     CLIENT_SECRET_GMAIL, GOOGLE_AUTH_URL, USER_AGENT, STORE_DIR
 from django.conf import settings
@@ -124,8 +124,7 @@ class GoogleService:
                 count = GoogleService.save_emails_to_db(service, gmail_service, tag, email_messages, user)
                 count_message += count
                 Log.objects.create(user=user, service=service,
-                               log_message='Successfully added %s messages' % count_message)
-
+                                   log_message='Successfully added %s messages' % count_message)
 
 
 class SlackService:

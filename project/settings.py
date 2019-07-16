@@ -78,6 +78,12 @@ INSTALLED_APPS = [
     'django_extensions',
     'rest_framework',
     'storages',
+    'django_cron'
+]
+
+CRON_CLASSES = [
+    "core.cron.MySlackCronJob",
+    "core.cron.MyGmailCronJob"
 ]
 
 MIDDLEWARE = [
