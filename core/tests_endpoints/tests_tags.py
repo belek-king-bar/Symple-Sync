@@ -5,13 +5,12 @@ from django.urls import reverse
 from ..models import Service, User, Tag
 from ..serializers import TagSerializer
 
-client = Client()
-
 
 class GetAllTagsTest(TestCase):
     def setUp(self):
         self.user = User.objects.create(
             username='belek', token='1234')
+        self.client = Client()
 
     def test_get_slack_tags(self):
         service = Service.objects.create(
@@ -21,7 +20,7 @@ class GetAllTagsTest(TestCase):
         tag.user.add(self.user.id)
         tag.service.add(service.id)
 
-        response = client.get(reverse('get_post_tags'), {'service': 'slack_test'})
+        response = self.client.get(reverse('get_post_tags'), {'service': 'slack_test'})
         service_slack = Service.objects.get(id=service.id)
         tags = Tag.objects.filter(service=service_slack)
         serializer = TagSerializer(tags, many=True)
@@ -36,7 +35,7 @@ class GetAllTagsTest(TestCase):
         tag.user.add(self.user.id)
         tag.service.add(service.id)
 
-        response = client.get(reverse('get_post_tags'), {'service': 'gmail_test'})
+        response = self.client.get(reverse('get_post_tags'), {'service': 'gmail_test'})
         service_gmail = Service.objects.get(id=service.id)
         tags = Tag.objects.filter(service=service_gmail)
         serializer = TagSerializer(tags, many=True)
@@ -52,6 +51,7 @@ class CreateNewTagTest(TestCase):
         self.service = Service.objects.create(
             name='slack_test', status=True, frequency='every day', connected=True)
         self.service.user.add(self.user.id)
+        self.client = Client()
 
     def test_create_valid_tags(self):
 
@@ -68,7 +68,7 @@ class CreateNewTagTest(TestCase):
             }
             ]
         }
-        response = client.post(
+        response = self.client.post(
             reverse('get_post_tags'),
             data=json.dumps(valid_payload),
             content_type='application/json'
@@ -90,7 +90,7 @@ class CreateNewTagTest(TestCase):
             }
             ]
         }
-        response = client.post(
+        response = self.client.post(
             reverse('get_post_tags'),
             data=json.dumps(invalid_payload),
             content_type='application/json'
@@ -108,6 +108,7 @@ class UpdateTagsTest(TestCase):
         self.tag = Tag.objects.create(name='/ Tag')
         self.tag.user.add(self.user.id)
         self.tag.service.add(self.service.id)
+        self.client = Client()
 
     def test_update_valid_tags(self):
 
@@ -120,7 +121,7 @@ class UpdateTagsTest(TestCase):
                 'name': "/ Tag1"
             }]
         }
-        response = client.post(
+        response = self.client.post(
             reverse('get_post_tags'),
             data=json.dumps(valid_payload),
             content_type='application/json'
@@ -138,7 +139,7 @@ class UpdateTagsTest(TestCase):
                 'name': ''
             }]
         }
-        response = client.post(
+        response = self.client.post(
             reverse('get_post_tags'),
             data=json.dumps(invalid_payload),
             content_type='application/json'

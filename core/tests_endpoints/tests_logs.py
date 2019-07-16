@@ -4,14 +4,14 @@ from django.urls import reverse
 from ..models import Service, User, Log
 from ..serializers import LogSerializer
 
-client = Client()
-
 
 class GetAllLogsTest(TestCase):
 
     def setUp(self):
         self.user = User.objects.create(
             username='belek', token='1234')
+        self.client = Client()
+
 
     def test_get_all_logs(self):
         service = Service.objects.create(
@@ -19,7 +19,7 @@ class GetAllLogsTest(TestCase):
         service.user.add(self.user.id)
         Log.objects.create(
             user=self.user, service=service, log_message='Token successfully received')
-        response = client.get(reverse('get_logs'))
+        response = self.client.get(reverse('get_logs'))
         logs = Log.objects.all()
         serializer = LogSerializer(logs, many=True)
         self.assertEqual(response.data, serializer.data)
