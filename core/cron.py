@@ -17,22 +17,20 @@ class MySlackCronJob(CronJobBase):
     code = 'core.my_slack_cron_job'
 
     def do(self):
-        print('Running sync...')
         SlackService.receive_messages()
 
 
 class MyGmailCronJob(CronJobBase):
-    slack = Service.objects.filter(name='gmail').first()
-    if slack.frequency == 'everyday':
+    gmail = Service.objects.filter(name='gmail').first()
+    if gmail.frequency == 'everyday':
         RUN_EVERY_MINS = MINUTE_DAY
-    elif slack.frequency == 'everyweek':
+    elif gmail.frequency == 'everyweek':
         RUN_EVERY_MINS = MINUTE_WEEK
-    elif slack.frequency == 'everymonth':
+    elif gmail.frequency == 'everymonth':
         RUN_EVERY_MINS = MINUTE_MONTH
 
     schedule = Schedule(run_every_mins=RUN_EVERY_MINS)
     code = 'core.my_gmail_cron_job'
 
     def do(self):
-        print('Running sync...')
-        GoogleService.save_emails_to_db()
+        GoogleService.receive_email_messages()
