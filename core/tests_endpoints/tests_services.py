@@ -9,13 +9,14 @@ client = Client()
 
 
 class GetAllServicesTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create(
+            username='belek', token='1234')
 
     def test_get_all_services(self):
-        user = User.objects.create(
-            username='belek', token='1234')
         service = Service.objects.create(
             name='slack_test', status=True, frequency='every day', connected=True)
-        service.user.add(user.id)
+        service.user.add(self.user.id)
 
         response = client.get(reverse('get_put_services'))
         services = Service.objects.all()

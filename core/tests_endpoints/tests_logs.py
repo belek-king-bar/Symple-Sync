@@ -9,14 +9,16 @@ client = Client()
 
 class GetAllLogsTest(TestCase):
 
-    def test_get_all_logs(self):
-        user = User.objects.create(
+    def setUp(self):
+        self.user = User.objects.create(
             username='belek', token='1234')
+
+    def test_get_all_logs(self):
         service = Service.objects.create(
             name='slack_test', status=True, frequency='every day', connected=True)
-        service.user.add(user.id)
+        service.user.add(self.user.id)
         Log.objects.create(
-            user=user, service=service, log_message='Token successfully received')
+            user=self.user, service=service, log_message='Token successfully received')
         response = client.get(reverse('get_logs'))
         logs = Log.objects.all()
         serializer = LogSerializer(logs, many=True)

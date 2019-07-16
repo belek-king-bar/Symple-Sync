@@ -1,9 +1,9 @@
 import requests
 from oauth2client.client import FlowExchangeError
 from rest_framework.views import APIView
-from core.services import SlackService, GoogleService, OAuthAuthorization
+from core.services import SlackService, GoogleService, OAuthAuthorization, TagsUpdateService
 from rest_framework.response import Response
-from core.exceptions import NoEmailFoundError, CodeExchangeException, NoDirFoundError
+from core.exceptions import NoEmailFoundError, CodeExchangeException, NoDirFoundError, SerializerValidationError
 from .serializers import MessageSerializer, ServiceSerializer, TagSerializer, LogSerializer
 from .models import Message, Service, User, Tag, Log, Token
 from rest_framework import status
@@ -126,53 +126,16 @@ class TagsView(APIView):
         return Response({'message': 'No service found'}, status=404)
 
     def post(self, request):
-        user = User.objects.first()
         service = Service.objects.get(name=request.data.get('service'))
         new_tags = request.data.get('tags')
         deleted_tags = request.data.get('deletedTags')
-        if deleted_tags:
-            for deleted_tag in deleted_tags:
-                tag = Tag.objects.filter(pk=deleted_tag).first()
-                if tag:
-                    tag.delete()
-
-        for new_tag in new_tags:
-            if 'id' in new_tag and new_tag['name'] != '':
-                tag = Tag.objects.get(pk=new_tag['id'])
-                if tag:
-                    data = {
-                        'user': [user.id],
-                        'service': [service.id],
-                        'name': new_tag['name'],
-                    }
-                    serializer = TagSerializer(tag, data=data)
-                    if serializer.is_valid():
-                        serializer.save()
-                    else:
-                        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            elif 'id' not in new_tag and new_tag['name'] != '':
-                tags = Tag.objects.filter(service=service)
-                names = []
-                for tag in tags:
-                    names.append(tag.name)
-                if new_tag['name'] not in names:
-                    data = {
-                        'user': [user.id],
-                        'service': [service.id],
-                        'name': new_tag['name'],
-                    }
-
-                    serializer = TagSerializer(data=data)
-                    if serializer.is_valid():
-                        serializer.save()
-                    else:
-                        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            else:
-                return Response(status=status.HTTP_400_BAD_REQUEST)
         service_tag = Tag.objects.filter(service=service)
         serializer = TagSerializer(service_tag, many=True)
+        try:
+            TagsUpdateService.tags_update(service, new_tags, deleted_tags)
+        except SerializerValidationError:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-
 
 class LogsView(APIView):
 

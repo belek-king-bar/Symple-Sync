@@ -1,12 +1,12 @@
 from dateutil import parser
 from googleapiclient.discovery import build
 from oauth2client.client import flow_from_clientsecrets, FlowExchangeError
-from core.exceptions import CodeExchangeException, NoDirFoundError
+from core.exceptions import CodeExchangeException, NoDirFoundError, SerializerValidationError
 from oauth2client.client import flow_from_clientsecrets
-from core.constants import EVERYDAY, EVERY_MONTH, DAY, MONTH, EVERY_WEEK, WEEK, LOCAL, \
-     AUTHORIZED_SUCCESS, AUTHORIZATION_ERROR, SYNCHRONIZATION_ERROR
+from core.constants import EVERY_MONTH, EVERY_WEEK, EVERYDAY, LOCAL, DAY, MONTH, WEEK, \
+    AUTHORIZATION_ERROR, SYNCHRONIZATION_ERROR, AUTHORIZED_SUCCESS
 from core.models import Message, Tag, Token, Service, User, Log
-from core.serializers import ServiceSerializer
+from core.serializers import ServiceSerializer, TagSerializer
 from core.utils import store_to_s3
 from project.settings import SCOPES, GOOGLE_REDIRECT_URI, GOOGLE_OAUTH2_CLIENT_SECRETS_JSON, CLIENT_ID_GMAIL, \
     CLIENT_SECRET_GMAIL, GOOGLE_AUTH_URL, USER_AGENT, STORE_DIR
@@ -127,7 +127,6 @@ class GoogleService:
                                        log_message='Label %s does not exist!' %tag.name)
         else:
             Log.objects.create(user=user, service=service, log_message=SYNCHRONIZATION_ERROR)
-
 
 
 class SlackService:
@@ -325,3 +324,46 @@ class OAuthAuthorization:
                 raise FlowExchangeError()
         else:
             raise CodeExchangeException()
+
+
+class TagsUpdateService:
+    @classmethod
+    def tags_update(cls, service, new_tags, deleted_tags):
+        user = User.objects.first()
+        if deleted_tags:
+            for deleted_tag in deleted_tags:
+                tag = Tag.objects.filter(pk=deleted_tag).first()
+                if tag:
+                    tag.delete()
+
+        for new_tag in new_tags:
+            if 'id' in new_tag and new_tag['name'] != '':
+                tag = Tag.objects.get(pk=new_tag['id'])
+                if tag:
+                    data = {
+                        'user': [user.id],
+                        'service': [service.id],
+                        'name': new_tag['name'],
+                    }
+                    serializer = TagSerializer(tag, data=data)
+                    if serializer.is_valid():
+                        serializer.save()
+                    else:
+                        raise SerializerValidationError()
+            elif 'id' not in new_tag and new_tag['name'] != '':
+                tags = Tag.objects.filter(service=service)
+                names = []
+                for tag in tags:
+                    names.append(tag.name)
+                if new_tag['name'] not in names:
+                    data = {
+                        'user': [user.id],
+                        'service': [service.id],
+                        'name': new_tag['name'],
+                    }
+
+                    serializer = TagSerializer(data=data)
+                    if serializer.is_valid():
+                        serializer.save()
+                    else:
+                        raise SerializerValidationError()
