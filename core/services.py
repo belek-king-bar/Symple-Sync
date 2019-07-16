@@ -1,9 +1,10 @@
+from dateutil import parser
 from googleapiclient.discovery import build
 from oauth2client.client import flow_from_clientsecrets, FlowExchangeError
-from core.exceptions import NoEmailFoundError, CodeExchangeException, NoDirFoundError
+from core.exceptions import CodeExchangeException, NoDirFoundError
 from oauth2client.client import flow_from_clientsecrets
-from core.constants import EVERYDAY, EVERY_MONTH, DAY, MONTH, EVERY_WEEK, WEEK, LOCAL, TIMESTAMP_WITHOUT_UTC, \
-    TIMESTAMP_WITH_UTC
+from core.constants import EVERYDAY, EVERY_MONTH, DAY, MONTH, EVERY_WEEK, WEEK, LOCAL, \
+     AUTHORIZED_SUCCESS, AUTHORIZATION_ERROR, SYNCHRONIZATION_ERROR
 from core.models import Message, Tag, Token, Service, User, Log
 from core.serializers import ServiceSerializer
 from core.utils import store_to_s3
@@ -24,8 +25,9 @@ class GoogleService:
         delivered_to = None
         timestamp = None
         for header in headers:
-            if header['name'] == 'Delivered-To':
-                delivered_to = header['value']
+            if header['name'] == 'From':
+                name = header['value'].split()
+                delivered_to = name[0] + ' ' + name[1]
             elif header['name'] == 'Date':
                 timestamp = header['value']
         return delivered_to, timestamp
@@ -80,10 +82,7 @@ class GoogleService:
                 msg = gmail_service.users().messages().get(userId='me', id=email_message['id']).execute()
                 headers = msg['payload']['headers']
                 delivered_to, timestamp = GoogleService.retrieve_username_and_date(headers)
-                if len(timestamp) < TIMESTAMP_WITHOUT_UTC:
-                    date = datetime.strptime(timestamp, "%a, %d %b %Y %H:%M:%S %z")
-                elif len(timestamp) > TIMESTAMP_WITH_UTC:
-                    date = datetime.strptime(timestamp, "%a, %d %b %Y %H:%M:%S %z (%Z)")
+                date = parser.parse(timestamp)
                 url, file_name = GoogleService.retrieve_files(msg, gmail_service, email_message)
                 if date > local_date_frequency:
                     if file_name is None and url is None:
@@ -107,24 +106,27 @@ class GoogleService:
         service = Service.objects.filter(name='gmail').first()
         token = Token.objects.filter(service=service).first()
         tags = Tag.objects.filter(service=service)
-        creds = oauth2client.client.GoogleCredentials(token.access_token, CLIENT_ID_GMAIL, CLIENT_SECRET_GMAIL,
-                                                      token.refresh_token, None,
-                                                      GOOGLE_AUTH_URL, USER_AGENT)
-        http = creds.authorize(httplib2.Http())
-        creds.refresh(http)
-        gmail_service = build('gmail', 'v1', credentials=creds)
-        for tag in tags:
-            label_id = GoogleService.retrieve_label_id(gmail_service, tag)
-            response = gmail_service.users().messages().list(userId='me', labelIds=[label_id]).execute()
-            email_messages = response.get('messages', [])
-            if not email_messages:
-                Log.objects.create(user=user, service=service, log_message='Synchronization error')
-                raise NoEmailFoundError()
-            else:
-                count = GoogleService.save_emails_to_db(service, gmail_service, tag, email_messages, user)
-                count_message += count
-                Log.objects.create(user=user, service=service,
-                               log_message='Successfully added %s messages' % count_message)
+        if token and service.status:
+            creds = oauth2client.client.GoogleCredentials(token.access_token, CLIENT_ID_GMAIL, CLIENT_SECRET_GMAIL,
+                                                          token.refresh_token, None,
+                                                          GOOGLE_AUTH_URL, USER_AGENT)
+            http = creds.authorize(httplib2.Http())
+            creds.refresh(http)
+            gmail_service = build(serviceName='gmail', version='v1', credentials=creds)
+            for tag in tags:
+                label_id = GoogleService.retrieve_label_id(gmail_service, tag)
+                if label_id is not None:
+                    response = gmail_service.users().messages().list(userId='me', labelIds=[label_id]).execute()
+                    email_messages = response.get('messages', [])
+                    count = GoogleService.save_emails_to_db(service, gmail_service, tag, email_messages, user)
+                    count_message += count
+                    Log.objects.create(user=user, service=service,
+                                   log_message='Successfully added %s messages' % count_message)
+                else:
+                    Log.objects.create(user=user, service=service,
+                                       log_message='Label %s does not exist!' %tag.name)
+        else:
+            Log.objects.create(user=user, service=service, log_message=SYNCHRONIZATION_ERROR)
 
 
 
@@ -184,7 +186,7 @@ class SlackService:
             Log.objects.create(user=user, service=service,
                                log_message='Successfully added %s messages' % count_message)
         else:
-            Log.objects.create(user=user, service=service, log_message='Synchronization error')
+            Log.objects.create(user=user, service=service, log_message=SYNCHRONIZATION_ERROR)
 
     @classmethod
     def save_messages_to_base(cls, message_in, service, user):
@@ -281,7 +283,7 @@ class OAuthAuthorization:
             json_response = requests.get(settings.URLS['oauth_access'], params_to_token)
             data = json.loads(json_response.text)
             Token.objects.create(service=service, access_token=data['access_token'])
-            Log.objects.create(user=user, service=service, log_message='Authorized successfully')
+            Log.objects.create(user=user, service=service, log_message=AUTHORIZED_SUCCESS)
             data = {
                 'user': [user.id],
                 'name': service.name,
@@ -293,7 +295,7 @@ class OAuthAuthorization:
             if serializer.is_valid():
                 serializer.save()
         else:
-            Log.objects.create(user=user, service=service, log_message='Authorization error')
+            Log.objects.create(user=user, service=service, log_message=AUTHORIZATION_ERROR)
 
     @classmethod
     def gmail_authorization(cls, code):
@@ -307,7 +309,7 @@ class OAuthAuthorization:
                 credentials = flow.step2_exchange(code)
                 Token.objects.create(service=service, access_token=credentials.access_token,
                                      refresh_token=credentials.refresh_token)
-                Log.objects.create(user=user, service=service, log_message='Authorized successfully')
+                Log.objects.create(user=user, service=service, log_message=AUTHORIZED_SUCCESS)
                 data = {
                     'user': [user.id],
                     'name': service.name,
@@ -319,7 +321,7 @@ class OAuthAuthorization:
                 if serializer.is_valid():
                     serializer.save()
             except:
-                Log.objects.create(user=user, service=service, log_message='Authorization error')
+                Log.objects.create(user=user, service=service, log_message=AUTHORIZATION_ERROR)
                 raise FlowExchangeError()
         else:
             raise CodeExchangeException()

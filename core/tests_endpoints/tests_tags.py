@@ -82,11 +82,11 @@ class CreateNewTagTest(TestCase):
             "tags": [{
                 'user': self.user.id,
                 'service': self.service.id,
-                'name': "",
+                'name': ''
             }, {
                 'user': self.user.id,
                 'service': self.service.id,
-                'name': ""
+                'name': ''
             }
             ]
         }
@@ -135,7 +135,7 @@ class UpdateTagsTest(TestCase):
                 'id': self.tag.id,
                 'user': self.user.id,
                 'service': self.service.id,
-                'name': ""
+                'name': ''
             }]
         }
         response = client.post(

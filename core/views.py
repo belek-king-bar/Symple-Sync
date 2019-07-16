@@ -87,16 +87,14 @@ class ServiceView(APIView):
         for service in services:
             service_b = Service.objects.get(pk=service['id'])
             token = Token.objects.filter(service=service_b).first()
-            if not service['connected'] and service_b.name=='gmail':
-                requests.get('https://accounts.google.com/o/oauth2/revoke?token=%s' %token.access_token)
-                if token:
-                    token.delete()
+            if not service['connected'] and service_b.name == 'gmail' and token:
+                requests.get('https://accounts.google.com/o/oauth2/revoke?token=%s' % token.access_token)
+                token.delete()
                 tags = Tag.objects.filter(service=service_b)
                 for tag in tags:
                     tag.delete()
-            elif not service['connected'] and service_b.name == 'slack':
-                if token:
-                    token.delete()
+            elif not service['connected'] and service_b.name == 'slack' and token:
+                token.delete()
                 tags = Tag.objects.filter(service=service_b)
                 for tag in tags:
                     tag.delete()
@@ -134,23 +132,25 @@ class TagsView(APIView):
         deleted_tags = request.data.get('deletedTags')
         if deleted_tags:
             for deleted_tag in deleted_tags:
-                tag = Tag.objects.get(pk=deleted_tag)
-                tag.delete()
+                tag = Tag.objects.filter(pk=deleted_tag).first()
+                if tag:
+                    tag.delete()
 
         for new_tag in new_tags:
-            if 'id' in new_tag:
+            if 'id' in new_tag and new_tag['name'] != '':
                 tag = Tag.objects.get(pk=new_tag['id'])
-                data = {
-                    'user': [user.id],
-                    'service': [service.id],
-                    'name': new_tag['name'],
-                }
-                serializer = TagSerializer(tag, data=data)
-                if serializer.is_valid():
-                    serializer.save()
-                else:
-                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            elif 'id' not in new_tag:
+                if tag:
+                    data = {
+                        'user': [user.id],
+                        'service': [service.id],
+                        'name': new_tag['name'],
+                    }
+                    serializer = TagSerializer(tag, data=data)
+                    if serializer.is_valid():
+                        serializer.save()
+                    else:
+                        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            elif 'id' not in new_tag and new_tag['name'] != '':
                 tags = Tag.objects.filter(service=service)
                 names = []
                 for tag in tags:
@@ -167,6 +167,8 @@ class TagsView(APIView):
                         serializer.save()
                     else:
                         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response(status=status.HTTP_400_BAD_REQUEST)
         service_tag = Tag.objects.filter(service=service)
         serializer = TagSerializer(service_tag, many=True)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
