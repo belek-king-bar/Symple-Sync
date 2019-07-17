@@ -93,11 +93,13 @@ class ServiceView(APIView):
                 tags = Tag.objects.filter(service=service_b)
                 for tag in tags:
                     tag.delete()
+                Log.objects.create(user=user, service=service_b, log_message='User logged out')
             elif not service['connected'] and service_b.name == 'slack' and token:
                 token.delete()
                 tags = Tag.objects.filter(service=service_b)
                 for tag in tags:
                     tag.delete()
+                Log.objects.create(user=user, service=service_b, log_message='User logged out')
             data = {
                 'user': [user.id],
                 'name': service_b.name,
