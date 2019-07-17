@@ -5,19 +5,19 @@ from django.urls import reverse
 from ..models import Service, User
 from ..serializers import ServiceSerializer
 
-client = Client()
-
 
 class GetAllServicesTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create(
+            username='belek', token='1234')
+        self.client = Client()
 
     def test_get_all_services(self):
-        user = User.objects.create(
-            username='belek', token='1234')
         service = Service.objects.create(
             name='slack_test', status=True, frequency='every day', connected=True)
-        service.user.add(user.id)
+        service.user.add(self.user.id)
 
-        response = client.get(reverse('get_put_services'))
+        response = self.client.get(reverse('get_put_services'))
         services = Service.objects.all()
         serializer = ServiceSerializer(services, many=True)
         self.assertEqual(response.data, serializer.data)
@@ -32,6 +32,7 @@ class UpdateServiceTest(TestCase):
         self.service = Service.objects.create(
             name='slack_test', status=True, frequency='every day', connected=True)
         self.service.user.add(self.user.id)
+        self.client = Client()
 
     def test_update_valid_service(self):
 
@@ -45,7 +46,7 @@ class UpdateServiceTest(TestCase):
             }]
         }
 
-        response = client.put(
+        response = self.client.put(
             reverse('get_put_services'),
             data=json.dumps(valid_payload),
             content_type='application/json'
@@ -63,7 +64,7 @@ class UpdateServiceTest(TestCase):
                 'connected': True
             }]
         }
-        response = client.put(
+        response = self.client.put(
             reverse('get_put_services'),
             data=json.dumps(invalid_payload),
             content_type='application/json'

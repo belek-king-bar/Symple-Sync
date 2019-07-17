@@ -8,3 +8,7 @@ class CodeExchangeException(Exception):
 
 class NoDirFoundError(Exception):
     pass
+
+
+class SerializerValidationError(Exception):
+    pass
