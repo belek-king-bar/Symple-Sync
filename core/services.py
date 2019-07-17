@@ -107,6 +107,8 @@ class GoogleService:
         token = Token.objects.filter(service=service).first()
         tags = Tag.objects.filter(service=service)
         if token and service.status:
+            Log.objects.create(user=user, service=service,
+                               log_message='Synchronization successfully started')
             creds = oauth2client.client.GoogleCredentials(token.access_token, CLIENT_ID_GMAIL, CLIENT_SECRET_GMAIL,
                                                           token.refresh_token, None,
                                                           GOOGLE_AUTH_URL, USER_AGENT)
