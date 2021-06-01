@@ -38,4 +38,4 @@ sqlparse==0.3.0
 tests==0.7
 text-unidecode==1.2
 uritemplate==3.0.0
-urllib3==1.25.3
+urllib3==1.26.5
